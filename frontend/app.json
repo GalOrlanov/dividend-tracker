@@ -6,6 +6,18 @@
       }
     },
     "owner": "galorlanov",
-    "slug": "dividend-tracker"
+    "slug": "dividend-tracker",
+    "android": {
+      "package": "com.galorlanov.dividendtracker"
+    },
+    "ios": {
+      "bundleIdentifier": "com.galorlanov.dividendtracker",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "plugins": [
+      "expo-web-browser"
+    ]
   }
 }
