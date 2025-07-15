@@ -1,0 +1,19 @@
+{
+  "name": "dividend-tracker",
+  "version": "1.0.0",
+  "description": "Professional dividend tracking application",
+  "scripts": {
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:backend": "cd backend && npm run dev",
+    "dev:frontend": "cd frontend && npm start",
+    "install:all": "npm install && cd backend && npm install && cd ../frontend && npm install"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "dependencies": {
+    "d3-shape": "^3.2.0",
+    "expo": "^53.0.19",
+    "react-native-haptic-feedback": "^2.3.3"
+  }
+}

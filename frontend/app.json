@@ -1,0 +1,11 @@
+{
+  "expo": {
+    "extra": {
+      "eas": {
+        "projectId": "0fb9a3c1-28af-4653-8a6f-6db5181f843f"
+      }
+    },
+    "owner": "galorlanov",
+    "slug": "dividend-tracker"
+  }
+}
