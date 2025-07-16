@@ -1,11 +1,7 @@
 import React, { useState } from "react";
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, KeyboardAvoidingView, Platform, ScrollView } from "react-native";
-import * as AuthSession from "expo-auth-session";
-import * as WebBrowser from "expo-web-browser";
 import authService from "../services/auth";
-
-// Complete the auth session
-WebBrowser.maybeCompleteAuthSession();
+//import googleAuthService from "../services/googleAuth";
 
 const RegisterScreen = ({ navigation, route }) => {
   const { onLogin } = route.params || {};
@@ -49,21 +45,23 @@ const RegisterScreen = ({ navigation, route }) => {
     try {
       setLoading(true);
 
-      // For demo purposes, we'll create a mock Google user
-      // In a real app, you would implement proper Google OAuth
-      const mockGoogleUser = {
-        id: "google_" + Date.now(),
-        email: "demo@gmail.com",
-        name: "Demo User",
-        picture: "https://via.placeholder.com/150",
-      };
+      // Perform Google OAuth
+      const result = null; //await googleAuthService.signInWithGoogle();
 
-      // Register with mock Google data
-      await authService.googleLogin(mockGoogleUser.id, mockGoogleUser.email, mockGoogleUser.name, mockGoogleUser.picture);
+      if (result.success) {
+        // Register/Login with Google data to our backend
+        await authService.googleLogin(result.userInfo.id, result.userInfo.email, result.userInfo.name, result.userInfo.picture);
 
-      // Call the onLogin function to update authentication state
-      if (onLogin) {
-        onLogin();
+        // Call the onLogin function to update authentication state
+        if (onLogin) {
+          onLogin();
+        }
+      } else {
+        if (result.error === "User cancelled the sign-in process") {
+          // User cancelled, don't show error
+          return;
+        }
+        Alert.alert("Google Registration Error", result.error);
       }
     } catch (error) {
       console.error("Google registration error:", error);

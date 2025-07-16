@@ -1,11 +1,7 @@
 import React, { useState } from "react";
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, KeyboardAvoidingView, Platform, ScrollView } from "react-native";
-import * as AuthSession from "expo-auth-session";
-import * as WebBrowser from "expo-web-browser";
 import authService from "../services/auth";
-
-// Complete the auth session
-WebBrowser.maybeCompleteAuthSession();
+import googleAuthService from "../services/googleAuth";
 
 const LoginScreen = ({ navigation, route }) => {
   const { onLogin } = route.params || {};
@@ -22,7 +18,6 @@ const LoginScreen = ({ navigation, route }) => {
     setLoading(true);
     try {
       await authService.login(email, password);
-      // Call the onLogin function to update authentication state
       if (onLogin) {
         onLogin();
       }
@@ -33,29 +28,19 @@ const LoginScreen = ({ navigation, route }) => {
     }
   };
 
-  const handleGoogleLogin = async () => {
+  const handleGoogleSignIn = async () => {
+    setLoading(true);
     try {
-      setLoading(true);
-
-      // For demo purposes, we'll create a mock Google user
-      // In a real app, you would implement proper Google OAuth
-      const mockGoogleUser = {
-        id: "google_" + Date.now(),
-        email: "demo@gmail.com",
-        name: "Demo User",
-        picture: "https://via.placeholder.com/150",
-      };
-
-      // Login with mock Google data
-      await authService.googleLogin(mockGoogleUser.id, mockGoogleUser.email, mockGoogleUser.name, mockGoogleUser.picture);
-
-      // Call the onLogin function to update authentication state
-      if (onLogin) {
-        onLogin();
+      const result = await googleAuthService.signIn();
+      if (result.success) {
+        if (onLogin) {
+          onLogin();
+        }
+      } else {
+        Alert.alert("Sign-In Failed", result.error || "Google Sign-In failed");
       }
     } catch (error) {
-      console.error("Google login error:", error);
-      Alert.alert("Error", "Google login failed. Please try again.");
+      Alert.alert("Error", "An unexpected error occurred during sign-in");
     } finally {
       setLoading(false);
     }
@@ -90,7 +75,7 @@ const LoginScreen = ({ navigation, route }) => {
             <View style={styles.dividerLine} />
           </View>
 
-          <TouchableOpacity style={[styles.button, styles.googleButton, loading && styles.disabledButton]} onPress={handleGoogleLogin} disabled={loading}>
+          <TouchableOpacity style={[styles.button, styles.googleButton, loading && styles.disabledButton]} onPress={handleGoogleSignIn} disabled={loading}>
             <Text style={styles.googleButtonText}>{loading ? "Signing In..." : "Continue with Google"}</Text>
           </TouchableOpacity>
 

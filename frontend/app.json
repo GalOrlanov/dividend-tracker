@@ -1,23 +1,32 @@
 {
   "expo": {
-    "extra": {
-      "eas": {
-        "projectId": "0fb9a3c1-28af-4653-8a6f-6db5181f843f"
-      }
+    "name": "Dividend Tracker",
+    "slug": "dividend-tracker-app",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
     },
-    "owner": "galorlanov",
-    "slug": "dividend-tracker",
-    "android": {
-      "package": "com.galorlanov.dividendtracker"
-    },
+    "assetBundlePatterns": ["**/*"],
     "ios": {
-      "bundleIdentifier": "com.galorlanov.dividendtracker",
-      "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
-      }
+      "supportsTablet": true,
+      "bundleIdentifier": "com.yourcompany.dividendtrackerapp"
     },
-    "plugins": [
-      "expo-web-browser"
-    ]
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "package": "com.yourcompany.dividendtrackerapp"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "scheme": "dividendtrackerapp",
+    "plugins": ["expo-dev-client"]
   }
 }

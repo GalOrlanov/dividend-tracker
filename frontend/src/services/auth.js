@@ -74,7 +74,7 @@ class AuthService {
   // Google OAuth login
   async googleLogin(googleId, email, name, avatar) {
     try {
-      const response = await api.post("/auth/google", {
+      const response = await api.post("/api/auth/google", {
         googleId,
         email,
         name,

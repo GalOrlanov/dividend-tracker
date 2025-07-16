@@ -1,15 +1,134 @@
 const express = require("express");
 const router = express.Router();
 const jwt = require("jsonwebtoken");
+const passport = require("passport");
+const GoogleStrategy = require("passport-google-oauth20").Strategy;
 const User = require("../models/User");
 const auth = require("../middleware/auth");
+const oauthConfig = require("../config/oauth");
+
+// Passport serialization/deserialization
+passport.serializeUser((user, done) => {
+  done(null, user.id);
+});
+
+passport.deserializeUser(async (id, done) => {
+  try {
+    const user = await User.findById(id);
+    done(null, user);
+  } catch (error) {
+    done(error, null);
+  }
+});
+
+// Configure Google OAuth Strategy
+passport.use(
+  new GoogleStrategy(
+    {
+      clientID: oauthConfig.GOOGLE_CLIENT_ID,
+      clientSecret: oauthConfig.GOOGLE_CLIENT_SECRET || "", // Can be empty for mobile apps
+      callbackURL: oauthConfig.GOOGLE_CALLBACK_URL,
+    },
+    async function (accessToken, refreshToken, profile, cb) {
+      try {
+        // Find or create user
+        let user = await User.findOne({
+          $or: [{ googleId: profile.id }, { email: profile.emails[0].value }],
+        });
+
+        if (user) {
+          // Update Google ID if user exists but doesn't have it
+          if (!user.googleId) {
+            user.googleId = profile.id;
+            user.avatar = profile.photos[0].value;
+            await user.save();
+          }
+        } else {
+          // Create new user
+          user = new User({
+            googleId: profile.id,
+            email: profile.emails[0].value,
+            name: profile.displayName,
+            avatar: profile.photos[0].value,
+            isEmailVerified: true, // Google users are pre-verified
+          });
+          await user.save();
+        }
+
+        // Update last login
+        user.lastLogin = new Date();
+        await user.save();
+
+        return cb(null, user);
+      } catch (error) {
+        return cb(error, null);
+      }
+    }
+  )
+);
 
 // Generate JWT token
 const generateToken = (userId) => {
-  return jwt.sign({ userId }, process.env.JWT_SECRET || "your-secret-key", {
+  return jwt.sign({ userId }, oauthConfig.JWT_SECRET, {
     expiresIn: "7d",
   });
 };
+
+// Initiate Google OAuth
+router.get(
+  "/google",
+  passport.authenticate("google", {
+    scope: ["profile", "email"],
+  })
+);
+
+// Google OAuth callback
+router.get("/google/callback", passport.authenticate("google", { failureRedirect: "/login" }), (req, res) => {
+  // Generate JWT token
+  const token = generateToken(req.user._id);
+
+  // Prepare user data
+  const userData = encodeURIComponent(
+    JSON.stringify({
+      id: req.user._id,
+      email: req.user.email,
+      name: req.user.name,
+      avatar: req.user.avatar,
+    })
+  );
+
+  // Redirect back to app with token
+  res.redirect(`${oauthConfig.APP_DEEP_LINK}?token=${token}&user=${userData}`);
+});
+
+// Validate token endpoint
+router.get("/validate", auth, (req, res) => {
+  res.json({
+    valid: true,
+    user: {
+      id: req.user._id,
+      email: req.user.email,
+      name: req.user.name,
+      avatar: req.user.avatar,
+    },
+  });
+});
+
+// Logout endpoint
+router.post("/logout", auth, (req, res) => {
+  // In a real app, you might want to blacklist the token
+  res.json({ success: true, message: "Logged out successfully" });
+});
+
+// Test endpoint to check if auth routes are working
+router.get("/test", (req, res) => {
+  res.json({
+    message: "Auth routes are working",
+    clientId: oauthConfig.GOOGLE_CLIENT_ID,
+    hasClientSecret: !!oauthConfig.GOOGLE_CLIENT_SECRET,
+    callbackUrl: oauthConfig.GOOGLE_CALLBACK_URL,
+  });
+});
 
 // Register new user
 router.post("/register", async (req, res) => {
@@ -90,10 +209,18 @@ router.post("/login", async (req, res) => {
   }
 });
 
-// Google OAuth callback
+// Google Sign-In endpoint for mobile apps
 router.post("/google", async (req, res) => {
   try {
-    const { googleId, email, name, avatar } = req.body;
+    const { idToken, user: googleUser } = req.body;
+
+    if (!idToken || !googleUser) {
+      return res.status(400).json({ message: "Missing required data" });
+    }
+
+    // For now, we'll trust the user data from the client
+    // In production, you should verify the ID token with Google's servers
+    const { id: googleId, email, name, avatar } = googleUser;
 
     // Find existing user by Google ID or email
     let user = await User.findOne({
