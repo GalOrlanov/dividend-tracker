@@ -23,12 +23,15 @@ import LoginScreen from "./src/screens/LoginScreen";
 import RegisterScreen from "./src/screens/RegisterScreen";
 import LoadingScreen from "./src/components/LoadingScreen";
 import ForecastScreen from "./src/screens/ForecastScreen";
+import SettingsScreen from "./src/screens/SettingsScreen";
+import ProfileScreen from "./src/screens/ProfileScreen";
 
 const Tab = createBottomTabNavigator();
 const DashboardStack = createStackNavigator();
 const DividendsStack = createStackNavigator();
 const SearchStack = createStackNavigator();
 const PortfolioStack = createStackNavigator();
+const SettingsStack = createStackNavigator();
 const AuthStack = createStackNavigator();
 
 // Custom theme
@@ -123,6 +126,25 @@ function PortfolioStackScreen() {
   );
 }
 
+function SettingsStackScreen({ onLogout }) {
+  return (
+    <SettingsStack.Navigator
+      screenOptions={{
+        headerStyle: {
+          backgroundColor: theme.colors.primary,
+        },
+        headerTintColor: "#FFFFFF",
+        headerTitleStyle: {
+          fontWeight: "bold",
+        },
+      }}
+    >
+      <SettingsStack.Screen name="SettingsMain" component={SettingsScreen} initialParams={{ onLogout }} options={{ title: "Settings" }} />
+      <SettingsStack.Screen name="Profile" component={ProfileScreen} options={{ title: "Profile" }} />
+    </SettingsStack.Navigator>
+  );
+}
+
 // Authentication Stack
 function AuthStackScreen({ onLogin }) {
   return (
@@ -155,6 +177,8 @@ function TabNavigator({ onLogout }) {
             iconName = focused ? "magnify" : "magnify";
           } else if (route.name === "Calendar") {
             iconName = focused ? "calendar" : "calendar-outline";
+          } else if (route.name === "Settings") {
+            iconName = focused ? "cog" : "cog-outline";
           }
 
           return <Icon name={iconName} size={size} color={color} style={{ marginTop: -6 }} />;
@@ -185,6 +209,7 @@ function TabNavigator({ onLogout }) {
       <Tab.Screen name="Portfolio" component={PortfolioStackScreen} options={{ headerShown: false, title: "Portfolio" }} />
       <Tab.Screen name="Search" component={SearchStackScreen} options={{ headerShown: false, title: "Search" }} />
       <Tab.Screen name="Calendar" component={CalendarScreen} options={{ title: "Calendar" }} />
+      <Tab.Screen name="Settings" component={SettingsStackScreen} initialParams={{ onLogout }} options={{ headerShown: false, title: "Settings" }} />
     </Tab.Navigator>
   );
 }
