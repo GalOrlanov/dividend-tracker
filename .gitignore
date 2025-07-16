@@ -197,4 +197,4 @@ dist/
 
 # API keys and sensitive data
 config/apiKeys.js
-config/secrets.js 
+config/secrets.js *.tar.gz
