@@ -19,6 +19,9 @@ const authRoutes = require("./routes/auth");
 const app = express();
 const PORT = config.port;
 
+// Trust proxy for rate limiting behind load balancers/proxies
+app.set("trust proxy", 1);
+
 // Custom Morgan token for response time in milliseconds
 morgan.token("response-time-ms", (req, res) => {
   if (!res._header || !req._startAt) return "";
