@@ -98,8 +98,8 @@ router.get("/google/callback", passport.authenticate("google", { failureRedirect
     })
   );
 
-  // For web-based OAuth, redirect to a success page that can handle the token
-  const redirectUrl = `${oauthConfig.FRONTEND_SUCCESS_URL}?token=${token}&user=${userData}`;
+  // Redirect to mobile app deep link with token
+  const redirectUrl = `${oauthConfig.APP_DEEP_LINK}?token=${token}`;
   res.redirect(redirectUrl);
 });
 
