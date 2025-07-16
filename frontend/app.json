@@ -2,7 +2,7 @@
   "expo": {
     "name": "Dividend Tracker",
     "slug": "dividend-tracker-app",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -17,7 +17,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.galorlanov.dividendtracker",
-      "buildNumber": "2"
+      "buildNumber": "5"
     },
     "android": {
       "adaptiveIcon": {
@@ -25,7 +25,7 @@
         "backgroundColor": "#ffffff"
       },
       "package": "com.galorlanov.dividendtracker",
-      "versionCode": 2
+      "versionCode": 4
     },
     "web": {
       "favicon": "./assets/favicon.png"

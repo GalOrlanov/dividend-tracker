@@ -2,7 +2,7 @@
 // Update this based on your deployment environment
 
 // Development - Local server
-const LOCAL_API_URL = "https://dividend.share-it-up.com";
+const LOCAL_API_URL = "http://localhost:5001";
 
 // Production - VPS deployment with custom domain
 const PRODUCTION_API_URL = "https://dividend.share-it-up.com";
@@ -21,7 +21,7 @@ const getApiUrl = () => {
     case "ngrok":
       return NGROK_API_URL;
     case "development":
-      return PRODUCTION_API_URL;
+      return LOCAL_API_URL;
     default:
       return PRODUCTION_API_URL;
   }

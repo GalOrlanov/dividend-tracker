@@ -90,7 +90,7 @@ if (config.nodeEnv === "production") {
     max: config.rateLimitMax,
     message: "Too many requests from this IP, please try again later.",
   });
-  app.use(limiter);
+  //app.use(limiter);
 }
 
 // Body parsing middleware

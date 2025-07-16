@@ -687,7 +687,7 @@ const PortfolioScreen = ({ navigation }) => {
 
     // Calculate bar width and spacing to fit 12 columns
     const totalBars = 12;
-    const totalSpacing = availableWidth - 20; // Leave minimal margin
+    const totalSpacing = availableWidth - 10; // Leave minimal margin
     const barWidth = Math.floor(totalSpacing / totalBars) - 10; // Subtract 1 for spacing between bars
     const spacing = Math.floor((totalSpacing - barWidth * totalBars) / totalBars);
 
@@ -698,7 +698,7 @@ const PortfolioScreen = ({ navigation }) => {
       frontColor: "#4CAF50",
       topLabelComponent: () => {
         const numValue = Number(value) || 0;
-        return <Text style={{ fontSize: 10, color: "#666" }}>${numValue.toFixed(0)}</Text>;
+        return <Text style={{ fontSize: 9, color: "#666" }}>{Math.round(numValue)}</Text>;
       },
     }));
 
@@ -747,7 +747,7 @@ const PortfolioScreen = ({ navigation }) => {
               barWidth={barWidth}
               spacing={spacing}
               xAxisLabelsVerticalShift={10}
-              xAxisLabelTextStyle={{ fontSize: 10, color: "#666" }}
+              xAxisLabelTextStyle={{ fontSize: 9, color: "#666" }}
               onPress={handleBarPress}
               showVerticalLines={false}
               showHorizontalLines={false}
@@ -759,8 +759,10 @@ const PortfolioScreen = ({ navigation }) => {
               yAxisLabelWidth={0} // removes left padding
               endSpacing={0}
               barBorderRadius={10}
+              topLabelTextStyle={{ fontSize: 10, color: "#666" }}
               barStyle={{
                 borderRadius: 10,
+                fontSize: 10,
               }}
             />
           </View>
@@ -1126,9 +1128,10 @@ const PortfolioScreen = ({ navigation }) => {
                               }
                               grouped[div.symbol].value += Number(div.totalAmount || div.amount || 0);
                             });
-                            const pieData = Object.keys(grouped).map((symbol) => ({
+                            const pieData = Object.keys(grouped).map((symbol, index) => ({
                               value: grouped[symbol].value,
                               text: symbol,
+                              color: ["#FF6384", "#36A2EB", "#FFCE56", "#4BC0C0", "#9966FF", "#FF9F40", "#FF6384", "#C9CBCF"][index % 8],
                             }));
                             return pieData.length > 0 ? <PieChart data={pieData} donut radius={60} innerRadius={35} showText={false} /> : null;
                           })()}
@@ -1137,12 +1140,37 @@ const PortfolioScreen = ({ navigation }) => {
                         {/* Dividend List Section */}
                         <View style={styles.dividendListContainer}>
                           <Text style={styles.dividendListTitle}>Dividends</Text>
-                          {selectedMonth.dividends.map((div, idx) => (
-                            <View key={idx} style={styles.dividendListItem}>
-                              <Text style={styles.dividendListSymbol}>{div.symbol}</Text>
-                              <Text style={styles.dividendListAmount}>{formatCurrency(div.totalAmount || div.amount || 0)}</Text>
-                            </View>
-                          ))}
+                          {(() => {
+                            // Group by symbol and create pie chart data to get colors
+                            const grouped = {};
+                            (selectedMonth.dividends || []).forEach((div) => {
+                              if (!grouped[div.symbol]) {
+                                grouped[div.symbol] = {
+                                  value: 0,
+                                  dividends: [],
+                                };
+                              }
+                              grouped[div.symbol].value += Number(div.totalAmount || div.amount || 0);
+                              grouped[div.symbol].dividends.push(div);
+                            });
+
+                            // Create pie chart data to get colors
+                            const pieData = Object.keys(grouped).map((symbol, index) => ({
+                              value: grouped[symbol].value,
+                              text: symbol,
+                              color: ["#FF6384", "#36A2EB", "#FFCE56", "#4BC0C0", "#9966FF", "#FF9F40", "#FF6384", "#C9CBCF"][index % 8],
+                            }));
+
+                            return pieData.map((item, idx) => (
+                              <View key={idx} style={styles.dividendListItem}>
+                                <View style={styles.dividendListRow}>
+                                  <View style={[styles.colorIndicator, { backgroundColor: item.color }]} />
+                                  <Text style={styles.dividendListSymbol}>{item.text}</Text>
+                                </View>
+                                <Text style={styles.dividendListAmount}>{formatCurrency(item.value)}</Text>
+                              </View>
+                            ));
+                          })()}
                         </View>
                       </>
                     ) : (
@@ -1946,6 +1974,16 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderBottomWidth: 1,
     borderBottomColor: "#f0f0f0",
+  },
+  dividendListRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  colorIndicator: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    marginRight: 8,
   },
   dividendListSymbol: {
     fontSize: 16,
