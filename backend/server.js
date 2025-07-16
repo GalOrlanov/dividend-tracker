@@ -1,3 +1,4 @@
+require("dotenv").config();
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
@@ -8,7 +9,6 @@ const session = require("express-session");
 const morgan = require("morgan");
 const config = require("./config");
 const oauthConfig = require("./config/oauth");
-require("dotenv").config();
 
 const dividendRoutes = require("./routes/dividends");
 const stockRoutes = require("./routes/stocks");
