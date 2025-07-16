@@ -2,6 +2,7 @@ import * as AuthSession from "expo-auth-session";
 import * as WebBrowser from "expo-web-browser";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { API_BASE_URL } from "../config/api";
+import authService from "./auth";
 
 const CLIENT_ID = "338573289308-ovqmoo12skk745rplp1vplk3q1cdunsn.apps.googleusercontent.com";
 // Use the backend OAuth redirect URL instead of Expo proxy
@@ -31,9 +32,8 @@ class GoogleAuthService {
       // Decode the user data
       const user = JSON.parse(decodeURIComponent(userData));
 
-      // Store the authentication data
-      await AsyncStorage.setItem("authToken", token);
-      await AsyncStorage.setItem("user", JSON.stringify(user));
+      // Store the token using the main auth service
+      await authService.setToken(token);
 
       return {
         success: true,
@@ -48,8 +48,7 @@ class GoogleAuthService {
 
   static async signOut() {
     try {
-      await AsyncStorage.removeItem("authToken");
-      await AsyncStorage.removeItem("user");
+      await authService.logout();
       return { success: true };
     } catch (error) {
       return { success: false, error: error.message };
@@ -58,13 +57,7 @@ class GoogleAuthService {
 
   static async isSignedIn() {
     try {
-      const token = await AsyncStorage.getItem("authToken");
-      if (!token) return false;
-      const response = await fetch(`${API_BASE_URL}/api/auth/validate`, {
-        method: "GET",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      return response.ok;
+      return await authService.isAuthenticated();
     } catch {
       return false;
     }
@@ -72,8 +65,8 @@ class GoogleAuthService {
 
   static async getCurrentUser() {
     try {
-      const userStr = await AsyncStorage.getItem("user");
-      return userStr ? JSON.parse(userStr) : null;
+      const response = await authService.getCurrentUser();
+      return response.user;
     } catch {
       return null;
     }
