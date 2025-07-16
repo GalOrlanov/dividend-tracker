@@ -28,6 +28,7 @@ passport.use(
       clientID: oauthConfig.GOOGLE_CLIENT_ID,
       clientSecret: oauthConfig.GOOGLE_CLIENT_SECRET || "", // Can be empty for mobile apps
       callbackURL: oauthConfig.GOOGLE_CALLBACK_URL,
+      scope: "profile email",
     },
     async function (accessToken, refreshToken, profile, cb) {
       try {
