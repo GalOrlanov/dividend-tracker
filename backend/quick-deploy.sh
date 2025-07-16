@@ -27,9 +27,18 @@ cd $REPO_DIR
 echo "🔄 Pulling latest code..."
 git fetch origin $BRANCH
 git reset --hard origin/$BRANCH
+EOF
+
+# Copy .env file to server backend directory
+echo "📤 Copying .env file to server..."
+sshpass -p "$PASSWORD" scp -o StrictHostKeyChecking=no .env root@$SERVER_IP:$REPO_DIR/backend/.env
+
+sshpass -p "$PASSWORD" ssh -o StrictHostKeyChecking=no root@$SERVER_IP << EOF
+set -e
+
+cd $REPO_DIR/backend
 
 echo "📦 Installing dependencies..."
-cd backend
 npm install --production
 
 # Restart app
