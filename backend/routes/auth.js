@@ -98,8 +98,8 @@ router.get("/google/callback", passport.authenticate("google", { failureRedirect
     })
   );
 
-  // Redirect to mobile app deep link with token
-  const redirectUrl = `${oauthConfig.APP_DEEP_LINK}?token=${token}`;
+  // Redirect to the app deep link with token and user data
+  const redirectUrl = `${oauthConfig.APP_DEEP_LINK}?token=${token}&user=${userData}`;
   res.redirect(redirectUrl);
 });
 

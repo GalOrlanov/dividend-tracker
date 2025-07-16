@@ -17,4 +17,7 @@ module.exports = {
 
   // App Deep Link for mobile OAuth
   APP_DEEP_LINK: "dividendtracker://oauth2redirect",
+
+  // Frontend success URL (for web-based OAuth fallback)
+  FRONTEND_SUCCESS_URL: process.env.NODE_ENV === "development" || !process.env.NODE_ENV ? "http://localhost:19006" : "https://your-frontend-domain.com",
 };

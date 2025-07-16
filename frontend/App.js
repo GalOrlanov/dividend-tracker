@@ -6,6 +6,7 @@ import { Provider as PaperProvider, DefaultTheme } from "react-native-paper";
 import { StatusBar } from "expo-status-bar";
 import FlashMessage from "react-native-flash-message";
 import Icon from "react-native-vector-icons/MaterialCommunityIcons";
+import { Linking } from "react-native";
 import authService from "./src/services/auth";
 
 // Screens
@@ -204,9 +205,48 @@ export default function App() {
     }
   };
 
+  const handleDeepLink = async (url) => {
+    console.log("Deep link received:", url);
+
+    // Parse the URL to extract token and user data
+    const urlObj = new URL(url);
+    const token = urlObj.searchParams.get("token");
+    const userData = urlObj.searchParams.get("user");
+
+    if (token && userData) {
+      try {
+        // Store the token
+        await authService.setToken(token);
+
+        // Set authentication state
+        setIsAuthenticated(true);
+
+        console.log("Successfully authenticated via deep link");
+      } catch (error) {
+        console.error("Deep link authentication error:", error);
+      }
+    }
+  };
+
   useEffect(() => {
     // Check if user is authenticated on app start
     checkAuth();
+
+    // Handle deep links when app is already running
+    const subscription = Linking.addEventListener("url", (event) => {
+      handleDeepLink(event.url);
+    });
+
+    // Handle deep links when app is opened from a link
+    Linking.getInitialURL().then((url) => {
+      if (url) {
+        handleDeepLink(url);
+      }
+    });
+
+    return () => {
+      subscription?.remove();
+    };
   }, []);
 
   const handleLogin = () => {
