@@ -16,5 +16,5 @@ module.exports = {
   GOOGLE_CALLBACK_URL: process.env.NODE_ENV === "development" || !process.env.NODE_ENV ? "http://localhost:5001/api/auth/google/callback" : "https://dividend.share-it-up.com/api/auth/google/callback",
 
   // Frontend success URL (for web-based OAuth)
-  FRONTEND_SUCCESS_URL: process.env.NODE_ENV === "development" || !process.env.NODE_ENV ? "http://localhost:3000/auth-success" : "https://your-frontend-domain.com/auth-success",
+  FRONTEND_SUCCESS_URL: process.env.NODE_ENV === "development" || !process.env.NODE_ENV ? "http://localhost:3000/auth-success" : "https://dividend.share-it-up.com/api/auth/google/callback",
 };
