@@ -154,16 +154,26 @@ class HybridStockService {
   }
 
   async getPriceHistory(symbol, timeframe = "1m") {
+    console.log(`🔍 HybridStockService: getPriceHistory called for ${symbol} with timeframe ${timeframe}`);
+
     try {
       // Try Polygon first for historical data
-      return await this.polygonService.getPriceHistory(symbol, timeframe);
+      console.log(`🔍 HybridStockService: Trying Polygon service for ${symbol} with timeframe ${timeframe}`);
+      const result = await this.polygonService.getPriceHistory(symbol, timeframe);
+      console.log(`✅ HybridStockService: Polygon service returned ${result.data?.length || 0} data points for ${symbol} with timeframe ${timeframe}`);
+      return result;
     } catch (err) {
-      console.warn("Polygon price history failed, trying Yahoo Finance:", err.message);
+      console.warn(`❌ HybridStockService: Polygon price history failed for ${symbol} with timeframe ${timeframe}, trying Yahoo Finance:`, err.message);
       try {
-        return await this.yahooScraper.getPriceHistory(symbol, timeframe);
+        console.log(`🔍 HybridStockService: Trying Yahoo Finance for ${symbol} with timeframe ${timeframe}`);
+        const result = await this.yahooScraper.getPriceHistory(symbol, timeframe);
+        console.log(`✅ HybridStockService: Yahoo Finance returned ${result.data?.length || 0} data points for ${symbol} with timeframe ${timeframe}`);
+        return result;
       } catch (yahooErr) {
-        console.warn("Yahoo Finance price history failed, using free APIs:", yahooErr.message);
-        return await this.freeApiService.getPriceHistory(symbol, timeframe);
+        console.warn(`❌ HybridStockService: Yahoo Finance price history failed for ${symbol} with timeframe ${timeframe}, using free APIs:`, yahooErr.message);
+        const result = await this.freeApiService.getPriceHistory(symbol, timeframe);
+        console.log(`✅ HybridStockService: Free API returned ${result.data?.length || 0} data points for ${symbol} with timeframe ${timeframe}`);
+        return result;
       }
     }
   }

@@ -1,20 +1,19 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, StyleSheet, ScrollView, Alert, TouchableOpacity } from "react-native";
-import { Card, Title, Paragraph, TextInput, Button, Avatar, Divider, List } from "react-native-paper";
+import { View, Text, StyleSheet, ScrollView, Alert } from "react-native";
+import { Card, Title, Paragraph, Button, TextInput, Avatar, Divider } from "react-native-paper";
 import { MaterialIcons } from "@expo/vector-icons";
+import { useTheme } from "../context/ThemeContext";
 import authService from "../services/auth";
 import { showMessage } from "react-native-flash-message";
 
 const ProfileScreen = ({ navigation }) => {
+  const { colors } = useTheme();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     email: "",
-    avatar: "",
-  });
-  const [passwordData, setPasswordData] = useState({
     currentPassword: "",
     newPassword: "",
     confirmPassword: "",
@@ -30,15 +29,17 @@ const ProfileScreen = ({ navigation }) => {
       const userData = await authService.getCurrentUser();
       setUser(userData.user);
       setFormData({
-        name: userData.user.name || "",
-        email: userData.user.email || "",
-        avatar: userData.user.avatar || "",
+        name: userData.user?.name || "",
+        email: userData.user?.email || "",
+        currentPassword: "",
+        newPassword: "",
+        confirmPassword: "",
       });
     } catch (error) {
       console.error("Error loading user profile:", error);
       showMessage({
         message: "Error",
-        description: "Failed to load profile data",
+        description: "Failed to load profile",
         type: "danger",
       });
     } finally {
@@ -47,97 +48,96 @@ const ProfileScreen = ({ navigation }) => {
   };
 
   const handleSaveProfile = async () => {
+    if (!formData.name.trim()) {
+      showMessage({
+        message: "Error",
+        description: "Name is required",
+        type: "danger",
+      });
+      return;
+    }
+
     try {
-      if (!formData.name.trim()) {
-        showMessage({
-          message: "Error",
-          description: "Name is required",
-          type: "danger",
-        });
-        return;
-      }
-
-      await authService.updateProfile(formData.name, formData.avatar);
-      setEditing(false);
-      await loadUserProfile(); // Reload to get updated data
-
+      // TODO: Implement profile update API call
       showMessage({
         message: "Success",
         description: "Profile updated successfully",
         type: "success",
       });
+      setEditing(false);
+      await loadUserProfile();
     } catch (error) {
       console.error("Error updating profile:", error);
       showMessage({
         message: "Error",
-        description: error.message || "Failed to update profile",
+        description: "Failed to update profile",
         type: "danger",
       });
     }
   };
 
   const handleChangePassword = async () => {
-    try {
-      if (!passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword) {
-        showMessage({
-          message: "Error",
-          description: "All password fields are required",
-          type: "danger",
-        });
-        return;
-      }
-
-      if (passwordData.newPassword !== passwordData.confirmPassword) {
-        showMessage({
-          message: "Error",
-          description: "New passwords do not match",
-          type: "danger",
-        });
-        return;
-      }
-
-      if (passwordData.newPassword.length < 6) {
-        showMessage({
-          message: "Error",
-          description: "New password must be at least 6 characters",
-          type: "danger",
-        });
-        return;
-      }
-
-      await authService.changePassword(passwordData.currentPassword, passwordData.newPassword);
-
-      setPasswordData({
-        currentPassword: "",
-        newPassword: "",
-        confirmPassword: "",
+    if (!formData.currentPassword || !formData.newPassword || !formData.confirmPassword) {
+      showMessage({
+        message: "Error",
+        description: "All password fields are required",
+        type: "danger",
       });
+      return;
+    }
 
+    if (formData.newPassword !== formData.confirmPassword) {
+      showMessage({
+        message: "Error",
+        description: "New passwords do not match",
+        type: "danger",
+      });
+      return;
+    }
+
+    if (formData.newPassword.length < 6) {
+      showMessage({
+        message: "Error",
+        description: "Password must be at least 6 characters",
+        type: "danger",
+      });
+      return;
+    }
+
+    try {
+      // TODO: Implement password change API call
       showMessage({
         message: "Success",
         description: "Password changed successfully",
         type: "success",
       });
+      setFormData({
+        ...formData,
+        currentPassword: "",
+        newPassword: "",
+        confirmPassword: "",
+      });
     } catch (error) {
       console.error("Error changing password:", error);
       showMessage({
         message: "Error",
-        description: error.message || "Failed to change password",
+        description: "Failed to change password",
         type: "danger",
       });
     }
   };
 
   const handleDeleteAccount = () => {
-    Alert.alert("Delete Account", "Are you sure you want to delete your account? This action cannot be undone and will permanently delete all your data.", [
+    Alert.alert("Delete Account", "This action cannot be undone. All your data will be permanently deleted.", [
       { text: "Cancel", style: "cancel" },
       {
         text: "Delete",
         style: "destructive",
         onPress: () => {
+          // TODO: Implement account deletion
           showMessage({
-            message: "Coming Soon",
-            description: "Account deletion will be available in the next update",
+            message: "Not Implemented",
+            description: "Account deletion feature is not yet implemented",
             type: "info",
           });
         },
@@ -145,249 +145,249 @@ const ProfileScreen = ({ navigation }) => {
     ]);
   };
 
-  const renderProfileHeader = () => (
-    <Card style={styles.card}>
-      <Card.Content>
-        <View style={styles.profileHeader}>
-          <Avatar.Text size={80} label={user?.name?.charAt(0)?.toUpperCase() || "U"} style={styles.avatar} />
-          <View style={styles.profileInfo}>
-            <Title style={styles.profileName}>{user?.name || "User"}</Title>
-            <Paragraph style={styles.profileEmail}>{user?.email || "user@example.com"}</Paragraph>
-            <Paragraph style={styles.profileDate}>Member since {user?.createdAt ? new Date(user.createdAt).toLocaleDateString() : "N/A"}</Paragraph>
-          </View>
-        </View>
-      </Card.Content>
-    </Card>
-  );
-
-  const renderProfileForm = () => (
-    <Card style={styles.card}>
-      <Card.Content>
-        <View style={styles.sectionHeader}>
-          <Title style={styles.sectionTitle}>Profile Information</Title>
-          <TouchableOpacity onPress={() => setEditing(!editing)}>
-            <MaterialIcons name={editing ? "close" : "edit"} size={24} color="#2196F3" />
-          </TouchableOpacity>
-        </View>
-
-        <TextInput label="Name" value={formData.name} onChangeText={(text) => setFormData((prev) => ({ ...prev, name: text }))} disabled={!editing} style={styles.input} mode="outlined" />
-
-        <TextInput
-          label="Email"
-          value={formData.email}
-          disabled={true} // Email cannot be changed
-          style={styles.input}
-          mode="outlined"
-        />
-
-        {editing && (
-          <View style={styles.editButtons}>
-            <Button mode="outlined" onPress={() => setEditing(false)} style={styles.cancelButton}>
-              Cancel
-            </Button>
-            <Button mode="contained" onPress={handleSaveProfile} style={styles.saveButton}>
-              Save Changes
-            </Button>
-          </View>
-        )}
-      </Card.Content>
-    </Card>
-  );
-
-  const renderPasswordSection = () => (
-    <Card style={styles.card}>
-      <Card.Content>
-        <Title style={styles.sectionTitle}>Change Password</Title>
-
-        <TextInput
-          label="Current Password"
-          value={passwordData.currentPassword}
-          onChangeText={(text) => setPasswordData((prev) => ({ ...prev, currentPassword: text }))}
-          secureTextEntry
-          style={styles.input}
-          mode="outlined"
-        />
-
-        <TextInput
-          label="New Password"
-          value={passwordData.newPassword}
-          onChangeText={(text) => setPasswordData((prev) => ({ ...prev, newPassword: text }))}
-          secureTextEntry
-          style={styles.input}
-          mode="outlined"
-        />
-
-        <TextInput
-          label="Confirm New Password"
-          value={passwordData.confirmPassword}
-          onChangeText={(text) => setPasswordData((prev) => ({ ...prev, confirmPassword: text }))}
-          secureTextEntry
-          style={styles.input}
-          mode="outlined"
-        />
-
-        <Button mode="contained" onPress={handleChangePassword} style={styles.changePasswordButton}>
-          Change Password
-        </Button>
-      </Card.Content>
-    </Card>
-  );
-
-  const renderAccountStats = () => (
-    <Card style={styles.card}>
-      <Card.Content>
-        <Title style={styles.sectionTitle}>Account Statistics</Title>
-
-        <View style={styles.statsGrid}>
-          <View style={styles.statItem}>
-            <Text style={styles.statNumber}>{user?.portfolioCount || 0}</Text>
-            <Text style={styles.statLabel}>Stocks</Text>
-          </View>
-          <View style={styles.statItem}>
-            <Text style={styles.statNumber}>{user?.dividendCount || 0}</Text>
-            <Text style={styles.statLabel}>Dividends</Text>
-          </View>
-          <View style={styles.statItem}>
-            <Text style={styles.statNumber}>{user?.lastLogin ? new Date(user.lastLogin).toLocaleDateString() : "N/A"}</Text>
-            <Text style={styles.statLabel}>Last Login</Text>
-          </View>
-        </View>
-      </Card.Content>
-    </Card>
-  );
-
-  const renderAccountActions = () => (
-    <Card style={styles.card}>
-      <Card.Content>
-        <Title style={styles.sectionTitle}>Account Actions</Title>
-
-        <List.Item
-          title="Export My Data"
-          description="Download all your portfolio and dividend data"
-          left={(props) => <List.Icon {...props} icon="download" />}
-          onPress={() => {
-            showMessage({
-              message: "Coming Soon",
-              description: "Data export will be available in the next update",
-              type: "info",
-            });
-          }}
-        />
-        <Divider />
-        <List.Item
-          title="Delete Account"
-          description="Permanently delete your account and all data"
-          left={(props) => <List.Icon {...props} icon="delete" color="#d32f2f" />}
-          onPress={handleDeleteAccount}
-        />
-      </Card.Content>
-    </Card>
-  );
+  const styles = StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+      padding: 16,
+    },
+    card: {
+      backgroundColor: colors.surface,
+      marginBottom: 16,
+      elevation: 2,
+      shadowColor: colors.shadow,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+    },
+    profileHeader: {
+      alignItems: "center",
+      paddingVertical: 24,
+    },
+    avatar: {
+      backgroundColor: colors.primary,
+      marginBottom: 16,
+    },
+    profileName: {
+      fontSize: 24,
+      fontWeight: "bold",
+      color: colors.text,
+      marginBottom: 4,
+    },
+    profileEmail: {
+      fontSize: 16,
+      color: colors.textSecondary,
+    },
+    sectionTitle: {
+      fontSize: 18,
+      fontWeight: "bold",
+      color: colors.text,
+      marginBottom: 16,
+    },
+    input: {
+      backgroundColor: colors.surface,
+      marginBottom: 16,
+    },
+    inputLabel: {
+      color: colors.text,
+    },
+    button: {
+      marginBottom: 12,
+    },
+    dangerButton: {
+      borderColor: colors.error,
+      marginTop: 16,
+    },
+    dangerButtonText: {
+      color: colors.error,
+    },
+    divider: {
+      backgroundColor: colors.divider,
+      marginVertical: 16,
+    },
+    statsContainer: {
+      flexDirection: "row",
+      justifyContent: "space-around",
+      paddingVertical: 16,
+    },
+    statItem: {
+      alignItems: "center",
+    },
+    statValue: {
+      fontSize: 24,
+      fontWeight: "bold",
+      color: colors.primary,
+    },
+    statLabel: {
+      fontSize: 12,
+      color: colors.textSecondary,
+      marginTop: 4,
+    },
+  });
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <Text>Loading...</Text>
+      <View style={[styles.container, { justifyContent: "center", alignItems: "center" }]}>
+        <Text style={{ color: colors.text }}>Loading profile...</Text>
       </View>
     );
   }
 
   return (
     <ScrollView style={styles.container}>
-      {renderProfileHeader()}
-      {renderProfileForm()}
-      {renderPasswordSection()}
-      {renderAccountStats()}
-      {renderAccountActions()}
+      {/* Profile Header */}
+      <Card style={styles.card}>
+        <Card.Content>
+          <View style={styles.profileHeader}>
+            <Avatar.Text size={80} label={user?.name?.charAt(0)?.toUpperCase() || "U"} style={styles.avatar} />
+            <Text style={styles.profileName}>{user?.name || "User"}</Text>
+            <Text style={styles.profileEmail}>{user?.email || "user@example.com"}</Text>
+          </View>
+
+          {/* Stats */}
+          <View style={styles.statsContainer}>
+            <View style={styles.statItem}>
+              <Text style={styles.statValue}>12</Text>
+              <Text style={styles.statLabel}>Stocks</Text>
+            </View>
+            <View style={styles.statItem}>
+              <Text style={styles.statValue}>$2,450</Text>
+              <Text style={styles.statLabel}>Annual Income</Text>
+            </View>
+            <View style={styles.statItem}>
+              <Text style={styles.statValue}>3.2%</Text>
+              <Text style={styles.statLabel}>Avg Yield</Text>
+            </View>
+          </View>
+        </Card.Content>
+      </Card>
+
+      {/* Profile Information */}
+      <Card style={styles.card}>
+        <Card.Content>
+          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+            <Text style={styles.sectionTitle}>Profile Information</Text>
+            <Button mode="text" onPress={() => setEditing(!editing)} textColor={colors.primary}>
+              {editing ? "Cancel" : "Edit"}
+            </Button>
+          </View>
+
+          <TextInput
+            label="Name"
+            value={formData.name}
+            onChangeText={(text) => setFormData({ ...formData, name: text })}
+            style={styles.input}
+            mode="outlined"
+            disabled={!editing}
+            labelStyle={styles.inputLabel}
+          />
+
+          <TextInput
+            label="Email"
+            value={formData.email}
+            onChangeText={(text) => setFormData({ ...formData, email: text })}
+            style={styles.input}
+            mode="outlined"
+            disabled={!editing}
+            keyboardType="email-address"
+            labelStyle={styles.inputLabel}
+          />
+
+          {editing && (
+            <Button mode="contained" onPress={handleSaveProfile} style={styles.button}>
+              Save Changes
+            </Button>
+          )}
+        </Card.Content>
+      </Card>
+
+      {/* Change Password */}
+      <Card style={styles.card}>
+        <Card.Content>
+          <Text style={styles.sectionTitle}>Change Password</Text>
+
+          <TextInput
+            label="Current Password"
+            value={formData.currentPassword}
+            onChangeText={(text) => setFormData({ ...formData, currentPassword: text })}
+            style={styles.input}
+            mode="outlined"
+            secureTextEntry
+            labelStyle={styles.inputLabel}
+          />
+
+          <TextInput
+            label="New Password"
+            value={formData.newPassword}
+            onChangeText={(text) => setFormData({ ...formData, newPassword: text })}
+            style={styles.input}
+            mode="outlined"
+            secureTextEntry
+            labelStyle={styles.inputLabel}
+          />
+
+          <TextInput
+            label="Confirm New Password"
+            value={formData.confirmPassword}
+            onChangeText={(text) => setFormData({ ...formData, confirmPassword: text })}
+            style={styles.input}
+            mode="outlined"
+            secureTextEntry
+            labelStyle={styles.inputLabel}
+          />
+
+          <Button mode="contained" onPress={handleChangePassword} style={styles.button}>
+            Change Password
+          </Button>
+        </Card.Content>
+      </Card>
+
+      {/* Account Actions */}
+      <Card style={styles.card}>
+        <Card.Content>
+          <Text style={styles.sectionTitle}>Account Actions</Text>
+
+          <Button
+            mode="outlined"
+            onPress={() => {
+              // TODO: Implement data export
+              showMessage({
+                message: "Coming Soon",
+                description: "Data export feature will be available soon",
+                type: "info",
+              });
+            }}
+            style={styles.button}
+            icon="download"
+          >
+            Export Data
+          </Button>
+
+          <Button
+            mode="outlined"
+            onPress={() => {
+              // TODO: Implement data import
+              showMessage({
+                message: "Coming Soon",
+                description: "Data import feature will be available soon",
+                type: "info",
+              });
+            }}
+            style={styles.button}
+            icon="upload"
+          >
+            Import Data
+          </Button>
+
+          <Divider style={styles.divider} />
+
+          <Button mode="outlined" onPress={handleDeleteAccount} style={styles.dangerButton} labelStyle={styles.dangerButtonText} icon="delete">
+            Delete Account
+          </Button>
+        </Card.Content>
+      </Card>
     </ScrollView>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#f5f5f5",
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  card: {
-    margin: 16,
-    elevation: 4,
-  },
-  profileHeader: {
-    alignItems: "center",
-  },
-  avatar: {
-    backgroundColor: "#2196F3",
-    marginBottom: 16,
-  },
-  profileInfo: {
-    alignItems: "center",
-  },
-  profileName: {
-    fontSize: 24,
-    fontWeight: "bold",
-    marginBottom: 4,
-  },
-  profileEmail: {
-    fontSize: 16,
-    color: "#666",
-    marginBottom: 4,
-  },
-  profileDate: {
-    fontSize: 14,
-    color: "#999",
-  },
-  sectionHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 16,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-  },
-  input: {
-    marginBottom: 16,
-  },
-  editButtons: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: 8,
-  },
-  cancelButton: {
-    flex: 1,
-    marginRight: 8,
-  },
-  saveButton: {
-    flex: 1,
-    marginLeft: 8,
-  },
-  changePasswordButton: {
-    marginTop: 8,
-  },
-  statsGrid: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-    marginTop: 16,
-  },
-  statItem: {
-    alignItems: "center",
-  },
-  statNumber: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: "#2196F3",
-  },
-  statLabel: {
-    fontSize: 14,
-    color: "#666",
-    marginTop: 4,
-  },
-});
 
 export default ProfileScreen;

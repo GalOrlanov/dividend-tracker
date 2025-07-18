@@ -2,8 +2,8 @@
 module.exports = {
   // Environment configuration
   environment: {
-    useMockData: process.env.USE_MOCK_DATA === "true" || process.env.NODE_ENV === "test",
-    useRealApis: process.env.USE_REAL_APIS === "true",
+    useMockData: false, // Disable mock data
+    useRealApis: true, // Use real APIs
   },
 
   // Alpha Vantage API (Rate limited - 25 requests/day free)
@@ -33,8 +33,8 @@ module.exports = {
 
   // Polygon.io API (Free - 5 requests/minute)
   polygon: {
-    enabled: false, // Disabled - need valid API key
-    apiKey: process.env.POLYGON_API_KEY || "YOUR_POLYGON_API_KEY",
+    enabled: true, // Enable Polygon API
+    apiKey: process.env.POLYGON_API_KEY || "bAPTz_El3ihlbFHkJ1mmuLEgoHb4zcz6",
     baseURL: "https://api.polygon.io",
     rateLimit: 5, // requests per minute
     timeout: 10000,
@@ -51,7 +51,7 @@ module.exports = {
 
   // Mock data configuration
   mockData: {
-    enabled: true, // Always available as fallback
+    enabled: false, // Disable mock data
     realisticData: true,
     includeDividendHistory: true,
   },

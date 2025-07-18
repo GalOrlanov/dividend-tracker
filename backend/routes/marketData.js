@@ -62,6 +62,8 @@ router.get("/search", async (req, res) => {
       exDividendDate: stock.exDividendDate || null,
       change: stock.change || 0,
       changePercent: stock.changePercent || 0,
+      relevanceScore: stock.relevanceScore || 0, // Include relevance score
+      isExactMatch: stock.isExactMatch || false, // Include exact match flag
     }));
 
     console.log(`✅ Fast search completed: ${basicResults.length} results`);

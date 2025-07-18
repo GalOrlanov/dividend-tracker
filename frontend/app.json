@@ -11,9 +11,7 @@
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
-    "assetBundlePatterns": [
-      "**/*"
-    ],
+    "assetBundlePatterns": ["**/*"],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.galorlanov.dividendtracker",
@@ -31,9 +29,7 @@
       "favicon": "./assets/favicon.png"
     },
     "scheme": "dividendtracker",
-    "plugins": [
-      "expo-dev-client"
-    ],
+    "plugins": ["expo-dev-client"],
     "extra": {
       "eas": {
         "projectId": "221f08ae-f84a-4bb4-8229-d9c7603b757f"

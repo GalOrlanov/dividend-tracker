@@ -1,14 +1,112 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { View, ScrollView, StyleSheet, Dimensions, TouchableOpacity } from "react-native";
 import { Card, Title, Paragraph, Button, Text, TextInput } from "react-native-paper";
 import Slider from "@react-native-community/slider";
-import { LineChart } from "react-native-chart-kit";
+import Svg, { Path, Line, Circle, Text as SvgText, G } from "react-native-svg";
+import * as d3 from "d3";
 import Icon from "react-native-vector-icons/MaterialCommunityIcons";
 import { portfolioAPI } from "../services/api";
 import { showMessage } from "react-native-flash-message";
 import { calculateForecastScenarios, getForecastChartData, getForecastSummary } from "../utils/forecastCalculator";
 
 const { width } = Dimensions.get("window");
+
+const D3ForecastChart = ({ data, colors, height, width: chartWidth, selectedChartType }) => {
+  const chartData = useMemo(() => {
+    if (!data || data.length === 0) return [];
+
+    return data.map((item, index) => ({
+      x: index,
+      portfolioValue: Math.round(item.portfolioValue || 0),
+      dividendsReceived: Math.round(item.dividendsReceived || 0),
+      year: item.year || 0,
+    }));
+  }, [data]);
+
+  if (chartData.length === 0) {
+    return null;
+  }
+
+  // D3 scales
+  const xScale = d3
+    .scaleLinear()
+    .domain([0, chartData.length - 1])
+    .range([60, chartWidth - 40]);
+
+  const yScale = d3
+    .scaleLinear()
+    .domain([0, d3.max(chartData, (d) => Math.max(d.portfolioValue, d.dividendsReceived)) * 1.1])
+    .range([height - 60, 40]);
+
+  // Line generators
+  const portfolioLine = d3
+    .line()
+    .x((d) => xScale(d.x))
+    .y((d) => yScale(d.portfolioValue))
+    .curve(d3.curveMonotoneX);
+
+  const dividendLine = d3
+    .line()
+    .x((d) => xScale(d.x))
+    .y((d) => yScale(d.dividendsReceived))
+    .curve(d3.curveMonotoneX);
+
+  // Grid lines
+  const yTicks = yScale.ticks(5);
+  const xTicks = xScale.ticks(chartData.length > 5 ? 5 : chartData.length);
+
+  return (
+    <Svg width={chartWidth} height={height}>
+      {/* Grid lines */}
+      <G>
+        {yTicks.map((tick, i) => (
+          <Line key={`y-grid-${i}`} x1={60} y1={yScale(tick)} x2={chartWidth - 40} y2={yScale(tick)} stroke="#E0E0E0" strokeWidth={0.5} opacity={0.3} />
+        ))}
+      </G>
+
+      {/* Y-axis labels */}
+      <G>
+        {yTicks.map((tick, i) => (
+          <SvgText key={`y-label-${i}`} x={55} y={yScale(tick) + 4} fontSize={10} fill="#757575" textAnchor="end">
+            ${(tick / 1000).toFixed(0)}K
+          </SvgText>
+        ))}
+      </G>
+
+      {/* X-axis labels */}
+      <G>
+        {xTicks.map((tick, i) => {
+          const item = chartData[tick];
+          if (!item) return null;
+
+          return (
+            <SvgText key={`x-label-${i}`} x={xScale(tick)} y={height - 35} fontSize={10} fill="#757575" textAnchor="middle">
+              Y{item.year}
+            </SvgText>
+          );
+        })}
+      </G>
+
+      {/* Portfolio line */}
+      {(selectedChartType === "portfolio" || selectedChartType === "both") && <Path d={portfolioLine(chartData)} stroke="#4CAF50" strokeWidth={3} fill="none" />}
+
+      {/* Dividend line */}
+      {(selectedChartType === "dividends" || selectedChartType === "both") && <Path d={dividendLine(chartData)} stroke="#2196F3" strokeWidth={2} fill="none" />}
+
+      {/* Data points */}
+      {chartData.map((point, i) => (
+        <React.Fragment key={`point-${i}`}>
+          {(selectedChartType === "portfolio" || selectedChartType === "both") && (
+            <Circle cx={xScale(point.x)} cy={yScale(point.portfolioValue)} r={3} fill="#4CAF50" stroke="#FFFFFF" strokeWidth={1} />
+          )}
+          {(selectedChartType === "dividends" || selectedChartType === "both") && (
+            <Circle cx={xScale(point.x)} cy={yScale(point.dividendsReceived)} r={2} fill="#2196F3" stroke="#FFFFFF" strokeWidth={1} />
+          )}
+        </React.Fragment>
+      ))}
+    </Svg>
+  );
+};
 
 const ForecastScreen = ({ navigation }) => {
   const [portfolioData, setPortfolioData] = useState(null);
@@ -78,69 +176,6 @@ const ForecastScreen = ({ navigation }) => {
     setForecastData(scenarios[selectedScenario]);
     const summaryData = getForecastSummary(scenarios[selectedScenario]);
     setSummary(summaryData);
-  };
-
-  const getChartData = () => {
-    if (!forecastData || forecastData.length === 0) {
-      return {
-        labels: ["Y0"],
-        datasets: [
-          {
-            data: [0],
-            color: (opacity = 1) => `rgba(76, 175, 80, ${opacity})`,
-            strokeWidth: 3,
-          },
-        ],
-      };
-    }
-
-    const labels = forecastData.map((item) => `Y${item.year || 0}`);
-    const portfolioValues = forecastData.map((item) => Math.round(item.portfolioValue || 0));
-    const dividendIncome = forecastData.map((item) => Math.round(item.dividendsReceived || 0));
-
-    let datasets = [];
-
-    if (selectedChartType === "portfolio" || selectedChartType === "both") {
-      datasets.push({
-        data: portfolioValues,
-        color: (opacity = 1) => `rgba(76, 175, 80, ${opacity})`, // Green for portfolio growth
-        strokeWidth: 3,
-      });
-    }
-
-    if (selectedChartType === "dividends" || selectedChartType === "both") {
-      datasets.push({
-        data: dividendIncome,
-        color: (opacity = 1) => `rgba(33, 150, 243, ${opacity})`, // Blue for dividend income
-        strokeWidth: 2,
-      });
-    }
-
-    return { labels, datasets };
-  };
-
-  const chartData = getChartData();
-
-  const chartConfig = {
-    backgroundColor: "#ffffff",
-    backgroundGradientFrom: "#ffffff",
-    backgroundGradientTo: "#ffffff",
-    decimalPlaces: 0,
-    color: (opacity = 1) => `rgba(76, 175, 80, ${opacity})`,
-    labelColor: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
-    style: {
-      borderRadius: 16,
-    },
-    propsForDots: {
-      r: "4",
-      strokeWidth: "2",
-      stroke: "#4CAF50",
-    },
-    propsForBackgroundLines: {
-      strokeDasharray: "",
-      stroke: "#E0E0E0",
-      strokeWidth: 1,
-    },
   };
 
   const scenarios = {
@@ -335,19 +370,15 @@ const ForecastScreen = ({ navigation }) => {
       <Card style={styles.chartCard}>
         <Card.Content>
           <Title style={styles.sectionTitle}>Growth Projection</Title>
-          <LineChart
-            data={chartData}
-            width={width - 40}
+          <D3ForecastChart
+            data={forecastData}
+            colors={{
+              portfolio: "#4CAF50",
+              dividends: "#2196F3",
+            }}
             height={280}
-            chartConfig={chartConfig}
-            bezier
-            style={styles.chart}
-            withDots={false}
-            withShadow={false}
-            withInnerLines={true}
-            withOuterLines={false}
-            withVerticalLines={false}
-            withHorizontalLines={true}
+            width={width - 40}
+            selectedChartType={selectedChartType}
           />
 
           <View style={styles.legend}>

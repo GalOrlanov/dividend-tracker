@@ -52,9 +52,21 @@ router.get("/", auth, async (req, res) => {
 
       console.log(`🔍 [PORTFOLIO] Initial values for ${symbol}: currentPrice=${currentPrice}, totalShares=${totalShares}`);
 
+      // Fetch fresh price and dividend data from Polygon API
+      let freshDividendYield = latestEntry.dividendYield;
+      let freshDividendPerShare = latestEntry.dividendPerShare;
+      let freshPayoutFrequency = latestEntry.payoutFrequency;
+
       try {
-        const quote = await stockService.getStockQuote(symbol);
+        console.log(`🔍 [PORTFOLIO] Fetching fresh data for ${symbol}...`);
+        const [quote, overview] = await Promise.all([stockService.getStockQuote(symbol), stockService.getCompanyOverview(symbol)]);
+
         console.log(`🔍 [PORTFOLIO] Fresh quote for ${symbol}:`, quote);
+        console.log(`🔍 [PORTFOLIO] Fresh overview for ${symbol}:`, overview);
+        console.log(`🔍 [PORTFOLIO] Overview dividend yield for ${symbol}:`, overview?.dividendYield);
+        console.log(`🔍 [PORTFOLIO] Overview dividend per share for ${symbol}:`, overview?.dividendPerShare);
+
+        // Update price data
         if (quote && quote.price && quote.price > 0) {
           currentPrice = parseFloat(quote.price);
           priceChange = parseFloat(quote.change) || 0;
@@ -68,8 +80,53 @@ router.get("/", auth, async (req, res) => {
         } else {
           console.log(`⚠️ [PORTFOLIO] Fresh quote has no valid price or previousClose for ${symbol}, keeping stored value: currentPrice=${currentPrice}`);
         }
+
+        // Update dividend data
+        if (overview && overview.dividendYield !== undefined && overview.dividendYield > 0) {
+          freshDividendYield = parseFloat(overview.dividendYield);
+          console.log(`✅ [PORTFOLIO] Using fresh dividend yield for ${symbol}: ${freshDividendYield}%`);
+        } else {
+          console.log(`⚠️ [PORTFOLIO] Fresh overview has no valid dividend yield for ${symbol}, keeping stored value: ${freshDividendYield}%`);
+        }
+
+        if (overview && overview.dividendPerShare !== undefined && overview.dividendPerShare > 0) {
+          freshDividendPerShare = parseFloat(overview.dividendPerShare);
+          console.log(`✅ [PORTFOLIO] Using fresh dividend per share for ${symbol}: $${freshDividendPerShare}`);
+        } else {
+          console.log(`⚠️ [PORTFOLIO] Fresh overview has no valid dividend per share for ${symbol}, keeping stored value: $${freshDividendPerShare}`);
+        }
+
+        if (overview && overview.payoutFrequency) {
+          freshPayoutFrequency = overview.payoutFrequency;
+          console.log(`✅ [PORTFOLIO] Using fresh payout frequency for ${symbol}: ${freshPayoutFrequency}`);
+        }
       } catch (err) {
-        console.warn(`❌ [PORTFOLIO] Failed to fetch fresh quote for ${symbol}:`, err.message);
+        console.warn(`❌ [PORTFOLIO] Failed to fetch fresh data for ${symbol}:`, err.message);
+        console.warn(`❌ [PORTFOLIO] Error details for ${symbol}:`, err);
+
+        // Try fetching overview data separately as fallback
+        try {
+          console.log(`🔄 [PORTFOLIO] Trying to fetch overview data separately for ${symbol}...`);
+          const fallbackOverview = await stockService.getCompanyOverview(symbol);
+          console.log(`🔄 [PORTFOLIO] Fallback overview for ${symbol}:`, fallbackOverview);
+
+          if (fallbackOverview && fallbackOverview.dividendYield !== undefined && fallbackOverview.dividendYield > 0) {
+            freshDividendYield = parseFloat(fallbackOverview.dividendYield);
+            console.log(`✅ [PORTFOLIO] Using fallback dividend yield for ${symbol}: ${freshDividendYield}%`);
+          }
+
+          if (fallbackOverview && fallbackOverview.dividendPerShare !== undefined && fallbackOverview.dividendPerShare > 0) {
+            freshDividendPerShare = parseFloat(fallbackOverview.dividendPerShare);
+            console.log(`✅ [PORTFOLIO] Using fallback dividend per share for ${symbol}: $${freshDividendPerShare}`);
+          }
+
+          if (fallbackOverview && fallbackOverview.payoutFrequency) {
+            freshPayoutFrequency = fallbackOverview.payoutFrequency;
+            console.log(`✅ [PORTFOLIO] Using fallback payout frequency for ${symbol}: ${freshPayoutFrequency}`);
+          }
+        } catch (fallbackErr) {
+          console.warn(`❌ [PORTFOLIO] Fallback overview fetch also failed for ${symbol}:`, fallbackErr.message);
+        }
       }
 
       // Create aggregated entry
@@ -84,9 +141,9 @@ router.get("/", auth, async (req, res) => {
         currentPrice: currentPrice,
         priceChange: priceChange,
         priceChangePercent: priceChangePercent,
-        dividendPerShare: latestEntry.dividendPerShare,
-        dividendYield: latestEntry.dividendYield,
-        payoutFrequency: latestEntry.payoutFrequency,
+        dividendPerShare: freshDividendPerShare,
+        dividendYield: freshDividendYield,
+        payoutFrequency: freshPayoutFrequency,
         lastUpdated: latestEntry.lastUpdated,
         createdAt: firstEntry.createdAt,
         updatedAt: latestEntry.updatedAt,
@@ -94,13 +151,10 @@ router.get("/", auth, async (req, res) => {
         totalInvestment: totalInvestment,
         currentValue: totalShares * currentPrice,
         totalDividendIncome:
-          totalShares *
-          (latestEntry.dividendPerShare * (latestEntry.payoutFrequency === "monthly" ? 12 : latestEntry.payoutFrequency === "quarterly" ? 4 : latestEntry.payoutFrequency === "semi-annually" ? 2 : 1)),
+          totalShares * (freshDividendPerShare * (freshPayoutFrequency === "monthly" ? 12 : freshPayoutFrequency === "quarterly" ? 4 : freshPayoutFrequency === "semi-annually" ? 2 : 1)),
         yieldOnCost:
           totalInvestment > 0
-            ? ((totalShares *
-                (latestEntry.dividendPerShare *
-                  (latestEntry.payoutFrequency === "monthly" ? 12 : latestEntry.payoutFrequency === "quarterly" ? 4 : latestEntry.payoutFrequency === "semi-annually" ? 2 : 1))) /
+            ? ((totalShares * (freshDividendPerShare * (freshPayoutFrequency === "monthly" ? 12 : freshPayoutFrequency === "quarterly" ? 4 : freshPayoutFrequency === "semi-annually" ? 2 : 1))) /
                 totalInvestment) *
               100
             : 0,
@@ -108,9 +162,7 @@ router.get("/", auth, async (req, res) => {
         totalReturn:
           totalShares * currentPrice -
           totalInvestment +
-          totalShares *
-            (latestEntry.dividendPerShare *
-              (latestEntry.payoutFrequency === "monthly" ? 12 : latestEntry.payoutFrequency === "quarterly" ? 4 : latestEntry.payoutFrequency === "semi-annually" ? 2 : 1)),
+          totalShares * (freshDividendPerShare * (freshPayoutFrequency === "monthly" ? 12 : freshPayoutFrequency === "quarterly" ? 4 : freshPayoutFrequency === "semi-annually" ? 2 : 1)),
         // Store individual purchases for reference
         individualPurchases: entries.map((entry) => ({
           _id: entry._id,
@@ -424,12 +476,22 @@ router.post("/refresh/:id", auth, async (req, res) => {
 // Refresh all portfolio data
 router.post("/refresh-all", auth, async (req, res) => {
   try {
+    console.log("🔄 Starting refresh-all for portfolio data...");
     const portfolio = await Portfolio.find({ user: req.user._id });
+    console.log(`📊 Found ${portfolio.length} stocks to refresh`);
     const updatedEntries = [];
 
     for (const entry of portfolio) {
       try {
+        console.log(`🔄 Refreshing ${entry.symbol}...`);
         const [quote, overview] = await Promise.all([stockService.getStockQuote(entry.symbol), stockService.getCompanyOverview(entry.symbol)]);
+
+        console.log(`📈 Quote for ${entry.symbol}:`, quote);
+        console.log(`📊 Overview for ${entry.symbol}:`, overview);
+
+        const oldPrice = entry.currentPrice;
+        const oldDividendYield = entry.dividendYield;
+        const oldDividendPerShare = entry.dividendPerShare;
 
         entry.currentPrice = parseFloat(quote.price) || entry.currentPrice;
         entry.priceChange = parseFloat(quote.change) || 0;
@@ -439,16 +501,22 @@ router.post("/refresh-all", auth, async (req, res) => {
         entry.payoutFrequency = overview.payoutFrequency || entry.payoutFrequency;
         entry.lastUpdated = new Date();
 
+        console.log(
+          `✅ ${entry.symbol} updated: Price ${oldPrice} → ${entry.currentPrice}, Yield ${oldDividendYield} → ${entry.dividendYield}, DPS ${oldDividendPerShare} → ${entry.dividendPerShare}`
+        );
+
         const updatedEntry = await entry.save();
         updatedEntries.push(updatedEntry);
       } catch (error) {
-        console.log(`Error updating ${entry.symbol}:`, error.message);
+        console.log(`❌ Error updating ${entry.symbol}:`, error.message);
         updatedEntries.push(entry);
       }
     }
 
+    console.log(`✅ Refresh-all completed. Updated ${updatedEntries.length} stocks.`);
     res.json(updatedEntries);
   } catch (error) {
+    console.error("❌ Refresh-all failed:", error.message);
     res.status(500).json({ message: error.message });
   }
 });
@@ -467,7 +535,7 @@ router.get("/dividend-history", auth, async (req, res) => {
       query.symbol = symbol.toUpperCase();
     }
 
-    const history = await DividendHistory.find(query).sort({ paymentDate: -1 }).limit(100);
+    const history = await DividendHistory.find(query).sort({ paymentDate: -1 }).limit(1000);
 
     // Calculate totals
     const totals = {
@@ -495,6 +563,170 @@ router.get("/dividend-history", auth, async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
+  }
+});
+
+// Get dividend chart data (aggregated by month)
+router.get("/dividend-chart-data", auth, async (req, res) => {
+  try {
+    const { year } = req.query;
+    const targetYear = parseInt(year) || new Date().getFullYear();
+
+    // Aggregate dividend data by month for the specified year
+    const monthlyData = await DividendHistory.aggregate([
+      {
+        $match: {
+          user: req.user._id,
+          year: targetYear,
+        },
+      },
+      {
+        $group: {
+          _id: {
+            year: "$year",
+            month: "$month",
+          },
+          totalAmount: { $sum: "$totalAmount" },
+          count: { $sum: 1 },
+          symbols: { $addToSet: "$symbol" },
+        },
+      },
+      {
+        $sort: { "_id.month": 1 },
+      },
+    ]);
+
+    // Create a complete 12-month dataset with zeros for missing months
+    const completeMonthlyData = [];
+    for (let month = 1; month <= 12; month++) {
+      const monthData = monthlyData.find((data) => data._id.month === month);
+      completeMonthlyData.push({
+        month: month,
+        totalAmount: monthData ? monthData.totalAmount : 0,
+        count: monthData ? monthData.count : 0,
+        symbols: monthData ? monthData.symbols : [],
+      });
+    }
+
+    // Calculate yearly totals
+    const yearlyTotal = completeMonthlyData.reduce((sum, month) => sum + month.totalAmount, 0);
+    const yearlyCount = completeMonthlyData.reduce((sum, month) => sum + month.count, 0);
+
+    // Get detailed dividend records for each month
+    const monthlyDetails = [];
+    for (let month = 1; month <= 12; month++) {
+      const monthDividends = await DividendHistory.find({
+        user: req.user._id,
+        year: targetYear,
+        month: month,
+      }).sort({ paymentDate: 1 });
+
+      monthlyDetails.push(monthDividends);
+    }
+
+    res.json({
+      year: targetYear,
+      monthlyData: completeMonthlyData,
+      monthlyDetails: monthlyDetails,
+      yearlyTotal,
+      yearlyCount,
+    });
+  } catch (error) {
+    console.error("Error fetching dividend chart data:", error);
+    res.status(500).json({ error: "Failed to fetch dividend chart data" });
+  }
+});
+
+// Get dividend data for specific month (for bar press)
+router.get("/dividend-month-data", auth, async (req, res) => {
+  try {
+    const { year, month } = req.query;
+    const targetYear = parseInt(year) || new Date().getFullYear();
+    const targetMonth = parseInt(month) || 1;
+
+    // Get historical dividends for this month and year
+    const historicalDividends = await DividendHistory.find({
+      user: req.user._id,
+      year: targetYear,
+      month: targetMonth,
+    }).sort({ paymentDate: 1 });
+
+    // Get upcoming payouts for this month and year (only for current year)
+    const currentYear = new Date().getFullYear();
+    let upcomingDividends = [];
+
+    if (targetYear === currentYear) {
+      const currentMonth = new Date().getMonth() + 1;
+      if (targetMonth >= currentMonth) {
+        upcomingDividends = await DividendHistory.find({
+          user: req.user._id,
+          year: targetYear,
+          month: targetMonth,
+        }).sort({ paymentDate: 1 });
+      }
+    }
+
+    // Calculate totals
+    const historicalTotal = historicalDividends.reduce((sum, div) => sum + div.totalAmount, 0);
+    const upcomingTotal = upcomingDividends.reduce((sum, div) => sum + div.totalAmount, 0);
+    const totalAmount = historicalTotal + upcomingTotal;
+
+    // Group by symbol for summary
+    const groupedBySymbol = {};
+
+    // Process historical dividends
+    historicalDividends.forEach((div) => {
+      if (!groupedBySymbol[div.symbol]) {
+        groupedBySymbol[div.symbol] = {
+          symbol: div.symbol,
+          historicalAmount: 0,
+          upcomingAmount: 0,
+          totalShares: 0,
+          dividendPerShare: div.dividendPerShare || 0,
+          paymentDate: div.paymentDate,
+          isHistorical: true,
+        };
+      }
+      groupedBySymbol[div.symbol].historicalAmount += div.totalAmount;
+      groupedBySymbol[div.symbol].totalShares += div.shares || 0;
+    });
+
+    // Process upcoming dividends
+    upcomingDividends.forEach((div) => {
+      if (!groupedBySymbol[div.symbol]) {
+        groupedBySymbol[div.symbol] = {
+          symbol: div.symbol,
+          historicalAmount: 0,
+          upcomingAmount: 0,
+          totalShares: 0,
+          dividendPerShare: div.dividendPerShare || 0,
+          paymentDate: div.paymentDate,
+          isHistorical: false,
+        };
+      }
+      groupedBySymbol[div.symbol].upcomingAmount += div.totalAmount;
+      groupedBySymbol[div.symbol].totalShares += div.shares || 0;
+    });
+
+    const symbolSummary = Object.values(groupedBySymbol);
+
+    res.json({
+      year: targetYear,
+      month: targetMonth,
+      monthName: new Date(targetYear, targetMonth - 1, 1).toLocaleString("default", { month: "long" }),
+      historicalDividends,
+      upcomingDividends,
+      symbolSummary,
+      totals: {
+        historicalTotal,
+        upcomingTotal,
+        totalAmount,
+        dividendCount: historicalDividends.length + upcomingDividends.length,
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching dividend month data:", error);
+    res.status(500).json({ error: "Failed to fetch dividend month data" });
   }
 });
 
@@ -544,20 +776,36 @@ router.get("/upcoming-payouts", auth, async (req, res) => {
     const nextYear = new Date(now.getFullYear() + 1, 11, 31); // End of next year
 
     for (const stock of portfolio) {
-      if (stock.dividendPerShare > 0) {
+      // Fetch fresh dividend data for each stock
+      let freshDividendPerShare = stock.dividendPerShare;
+      let freshPayoutFrequency = stock.payoutFrequency;
+
+      try {
+        const overview = await stockService.getCompanyOverview(stock.symbol);
+        if (overview && overview.dividendPerShare !== undefined && overview.dividendPerShare > 0) {
+          freshDividendPerShare = parseFloat(overview.dividendPerShare);
+        }
+        if (overview && overview.payoutFrequency) {
+          freshPayoutFrequency = overview.payoutFrequency;
+        }
+      } catch (error) {
+        console.log(`⚠️ Failed to fetch fresh dividend data for ${stock.symbol}:`, error.message);
+      }
+
+      if (freshDividendPerShare > 0) {
         // Calculate next payout dates based on frequency
-        const nextPayouts = calculateNextPayoutDates(stock.payoutFrequency, now, nextYear);
+        const nextPayouts = calculateNextPayoutDates(freshPayoutFrequency, now, nextYear);
 
         nextPayouts.forEach((payoutDate) => {
           upcomingPayouts.push({
             symbol: stock.symbol,
             companyName: stock.companyName,
             shares: stock.shares,
-            dividendPerShare: stock.dividendPerShare,
-            totalAmount: stock.shares * stock.dividendPerShare,
+            dividendPerShare: freshDividendPerShare,
+            totalAmount: stock.shares * freshDividendPerShare,
             payoutDate: payoutDate,
-            payoutFrequency: stock.payoutFrequency,
-            exDividendDate: calculateExDividendDate(payoutDate, stock.payoutFrequency),
+            payoutFrequency: freshPayoutFrequency,
+            exDividendDate: calculateExDividendDate(payoutDate, freshPayoutFrequency),
           });
         });
       }
@@ -630,12 +878,16 @@ router.post("/generate-future-dividends", auth, async (req, res) => {
       let stockGenerated = 0;
       let stockSkipped = 0;
 
+      // Calculate total amount once for this stock (will be consistent for all future dividends)
+      const totalAmount = dividendPerShare * shares;
+
       for (const dividendDate of dividendDates) {
         const year = dividendDate.getFullYear();
         const month = dividendDate.getMonth() + 1;
 
-        // Check if dividend entry already exists for this specific stock
+        // Check if dividend entry already exists for this specific stock and month
         const existingEntry = await DividendHistory.findOne({
+          user: req.user._id,
           symbol: stock.symbol,
           year: year,
           month: month,
@@ -650,19 +902,17 @@ router.post("/generate-future-dividends", auth, async (req, res) => {
         const paymentDate = new Date(dividendDate);
         paymentDate.setDate(paymentDate.getDate() + 21);
 
-        // Calculate total amount
-        const totalAmount = dividendPerShare * shares;
-
         // Determine quarter
         const quarter = Math.ceil(month / 3);
 
-        // Create dividend history entry
+        // Create dividend history entry with consistent amount
         const dividendEntry = new DividendHistory({
+          user: req.user._id,
           symbol: stock.symbol,
           companyName: stock.companyName,
           shares: shares,
           dividendPerShare: dividendPerShare,
-          totalAmount: totalAmount,
+          totalAmount: totalAmount, // Use the same amount for all future dividends
           year: year,
           month: month,
           quarter: quarter,
@@ -707,6 +957,123 @@ router.post("/generate-future-dividends", auth, async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Error generating future dividends",
+      error: error.message,
+    });
+  }
+});
+
+// Regenerate all dividend data for portfolio
+router.post("/regenerate-dividends", auth, async (req, res) => {
+  try {
+    console.log("🔄 API: Starting dividend data regeneration...");
+
+    // Get all stocks from portfolio
+    const portfolio = await Portfolio.find({ user: req.user._id });
+    console.log(`📊 Found ${portfolio.length} stocks in portfolio`);
+
+    if (portfolio.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "No stocks found in portfolio",
+      });
+    }
+
+    // Delete all existing dividend entries for this user
+    const deleteResult = await DividendHistory.deleteMany({ user: req.user._id });
+    console.log(`🗑️  Deleted ${deleteResult.deletedCount} existing dividend entries`);
+
+    const currentYear = new Date().getFullYear();
+    const yearsToGenerate = [currentYear, currentYear + 1]; // 2025, 2026
+
+    let totalGenerated = 0;
+    const results = [];
+
+    for (const stock of portfolio) {
+      console.log(`📈 Processing ${stock.symbol} (${stock.companyName})...`);
+
+      // Skip if no dividend data
+      if (!stock.dividendPerShare || stock.dividendPerShare <= 0) {
+        console.log(`   ⚠️  No dividend data for ${stock.symbol}, skipping`);
+        results.push({
+          symbol: stock.symbol,
+          status: "skipped",
+          reason: "No dividend data",
+        });
+        continue;
+      }
+
+      const shares = stock.shares;
+      const dividendPerShare = stock.dividendPerShare;
+      const payoutFrequency = stock.payoutFrequency || "quarterly";
+
+      // Generate dividend dates based on frequency (ignore purchase date for regeneration)
+      const dividendDates = getDividendDates(payoutFrequency, yearsToGenerate, new Date(2020, 0, 1));
+      let stockGenerated = 0;
+
+      // Calculate total amount once for this stock (will be consistent for all future dividends)
+      const totalAmount = dividendPerShare * shares;
+
+      for (const dividendDate of dividendDates) {
+        const year = dividendDate.getFullYear();
+        const month = dividendDate.getMonth() + 1;
+
+        // Calculate payment date (3 weeks after ex-dividend)
+        const paymentDate = new Date(dividendDate);
+        paymentDate.setDate(paymentDate.getDate() + 21);
+
+        // Determine quarter
+        const quarter = Math.ceil(month / 3);
+
+        // Create dividend history entry
+        const dividendEntry = new DividendHistory({
+          user: req.user._id,
+          symbol: stock.symbol,
+          companyName: stock.companyName,
+          shares: shares,
+          dividendPerShare: dividendPerShare,
+          totalAmount: totalAmount,
+          year: year,
+          month: month,
+          quarter: quarter,
+          payoutFrequency: payoutFrequency,
+          exDividendDate: dividendDate,
+          paymentDate: paymentDate,
+        });
+
+        await dividendEntry.save();
+        stockGenerated++;
+        console.log(`   ✅ Generated ${year}-${month.toString().padStart(2, "0")}: $${totalAmount.toFixed(2)}`);
+      }
+
+      totalGenerated += stockGenerated;
+
+      results.push({
+        symbol: stock.symbol,
+        status: "processed",
+        generated: stockGenerated,
+        dividendPerShare: dividendPerShare,
+        frequency: payoutFrequency,
+      });
+    }
+
+    console.log(`🎉 Dividend regeneration complete!`);
+    console.log(`   ✅ Generated: ${totalGenerated} entries`);
+
+    res.json({
+      success: true,
+      message: "Dividend data regenerated successfully",
+      summary: {
+        totalGenerated,
+        yearsGenerated: yearsToGenerate,
+        deletedCount: deleteResult.deletedCount,
+      },
+      results,
+    });
+  } catch (error) {
+    console.error("❌ Error regenerating dividend data:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error regenerating dividend data",
       error: error.message,
     });
   }
@@ -932,8 +1299,17 @@ function getDividendDates(frequency, years, purchaseDate) {
       // Create ex-dividend date (15th of each month)
       const exDividendDate = new Date(year, month - 1, 15);
 
-      // Only include if after purchase date and not in the past
-      if (exDividendDate > purchaseDate && exDividendDate > currentDate) {
+      // For current year, only include future months (including current month) after purchase date
+      // For future years, include ALL months regardless of purchase date
+      const currentMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+      if (year === currentDate.getFullYear()) {
+        // Current year: only include current month and future months after purchase date
+        if (exDividendDate >= currentMonth && exDividendDate > purchaseDate) {
+          dates.push(exDividendDate);
+        }
+      } else {
+        // Future years: include ALL months regardless of purchase date
+        // This ensures we get January, February, etc. for future years
         dates.push(exDividendDate);
       }
     }

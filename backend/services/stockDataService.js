@@ -176,7 +176,7 @@ class StockDataService {
         });
         return dividend;
       });
-
+      console.log(dividends);
       return dividends.filter((d) => d.symbol && d.symbol !== "");
     } catch (error) {
       console.error("Error fetching dividend calendar:", error.message);

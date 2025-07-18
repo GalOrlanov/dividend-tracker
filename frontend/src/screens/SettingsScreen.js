@@ -1,39 +1,17 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Switch } from "react-native";
-import { Card, Title, Paragraph, List, Divider, Button, Avatar, IconButton } from "react-native-paper";
+import { Card, Title, Paragraph, Button, List, Divider, RadioButton, Text as PaperText } from "react-native-paper";
 import { MaterialIcons } from "@expo/vector-icons";
+import { useTheme } from "../context/ThemeContext";
+import { ThemeType } from "../config/theme";
 import authService from "../services/auth";
-import { showMessage } from "react-native-flash-message";
 
 const SettingsScreen = ({ navigation, route }) => {
-  const { onLogout } = route.params || {};
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [settings, setSettings] = useState({
-    notifications: true,
-    darkMode: false,
-    autoRefresh: true,
-    showDividendAlerts: true,
-    showPriceAlerts: true,
-    currency: "USD",
-    language: "English",
-  });
+  const { colors, isDark, themeType, setTheme } = useTheme();
+  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const [biometricEnabled, setBiometricEnabled] = useState(false);
 
-  useEffect(() => {
-    loadUserProfile();
-  }, []);
-
-  const loadUserProfile = async () => {
-    try {
-      setLoading(true);
-      const userData = await authService.getCurrentUser();
-      setUser(userData.user);
-    } catch (error) {
-      console.error("Error loading user profile:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const onLogout = route.params?.onLogout;
 
   const handleLogout = () => {
     Alert.alert("Logout", "Are you sure you want to logout?", [
@@ -51,343 +29,265 @@ const SettingsScreen = ({ navigation, route }) => {
     ]);
   };
 
-  const toggleSetting = (key) => {
-    setSettings((prev) => ({
-      ...prev,
-      [key]: !prev[key],
-    }));
+  const handleThemeChange = (newThemeType) => {
+    setTheme(newThemeType);
   };
 
-  const navigateToProfile = () => {
-    navigation.navigate("Profile");
+  const handleDeleteAccount = () => {
+    Alert.alert("Delete Account", "This action cannot be undone. All your data will be permanently deleted.", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: () => {
+          // TODO: Implement account deletion
+          Alert.alert("Not Implemented", "Account deletion feature is not yet implemented.");
+        },
+      },
+    ]);
   };
 
-  const renderProfileSection = () => (
-    <Card style={styles.card}>
-      <Card.Content>
-        <TouchableOpacity onPress={navigateToProfile} style={styles.profileSection}>
-          <View style={styles.profileInfo}>
-            <Avatar.Text size={60} label={user?.name?.charAt(0)?.toUpperCase() || "U"} style={styles.avatar} />
-            <View style={styles.profileText}>
-              <Title style={styles.profileName}>{user?.name || "User"}</Title>
-              <Paragraph style={styles.profileEmail}>{user?.email || "user@example.com"}</Paragraph>
-            </View>
-          </View>
-          <MaterialIcons name="chevron-right" size={24} color="#666" />
-        </TouchableOpacity>
-      </Card.Content>
-    </Card>
-  );
+  const handleExportData = () => {
+    // TODO: Implement data export
+    Alert.alert("Export Data", "Data export feature is not yet implemented.");
+  };
 
-  const renderNotificationSettings = () => (
-    <Card style={styles.card}>
-      <Card.Content>
-        <Title style={styles.sectionTitle}>Notifications</Title>
-        <List.Item
-          title="Push Notifications"
-          description="Receive notifications about dividends and updates"
-          left={(props) => <List.Icon {...props} icon="bell" />}
-          right={() => (
-            <Switch
-              value={settings.notifications}
-              onValueChange={() => toggleSetting("notifications")}
-              trackColor={{ false: "#767577", true: "#81b0ff" }}
-              thumbColor={settings.notifications ? "#2196F3" : "#f4f3f4"}
-            />
-          )}
-        />
-        <Divider />
-        <List.Item
-          title="Dividend Alerts"
-          description="Get notified about upcoming dividend payments"
-          left={(props) => <List.Icon {...props} icon="cash-multiple" />}
-          right={() => (
-            <Switch
-              value={settings.showDividendAlerts}
-              onValueChange={() => toggleSetting("showDividendAlerts")}
-              trackColor={{ false: "#767577", true: "#81b0ff" }}
-              thumbColor={settings.showDividendAlerts ? "#2196F3" : "#f4f3f4"}
-            />
-          )}
-        />
-        <Divider />
-        <List.Item
-          title="Price Alerts"
-          description="Get notified about significant price changes"
-          left={(props) => <List.Icon {...props} icon="trending-up" />}
-          right={() => (
-            <Switch
-              value={settings.showPriceAlerts}
-              onValueChange={() => toggleSetting("showPriceAlerts")}
-              trackColor={{ false: "#767577", true: "#81b0ff" }}
-              thumbColor={settings.showPriceAlerts ? "#2196F3" : "#f4f3f4"}
-            />
-          )}
-        />
-      </Card.Content>
-    </Card>
-  );
+  const handleImportData = () => {
+    // TODO: Implement data import
+    Alert.alert("Import Data", "Data import feature is not yet implemented.");
+  };
 
-  const renderAppSettings = () => (
-    <Card style={styles.card}>
-      <Card.Content>
-        <Title style={styles.sectionTitle}>App Settings</Title>
-        <List.Item
-          title="Dark Mode"
-          description="Use dark theme for the app"
-          left={(props) => <List.Icon {...props} icon="theme-light-dark" />}
-          right={() => (
-            <Switch
-              value={settings.darkMode}
-              onValueChange={() => toggleSetting("darkMode")}
-              trackColor={{ false: "#767577", true: "#81b0ff" }}
-              thumbColor={settings.darkMode ? "#2196F3" : "#f4f3f4"}
-            />
-          )}
-        />
-        <Divider />
-        <List.Item
-          title="Auto Refresh"
-          description="Automatically refresh portfolio data"
-          left={(props) => <List.Icon {...props} icon="refresh" />}
-          right={() => (
-            <Switch
-              value={settings.autoRefresh}
-              onValueChange={() => toggleSetting("autoRefresh")}
-              trackColor={{ false: "#767577", true: "#81b0ff" }}
-              thumbColor={settings.autoRefresh ? "#2196F3" : "#f4f3f4"}
-            />
-          )}
-        />
-        <Divider />
-        <List.Item
-          title="Currency"
-          description={settings.currency}
-          left={(props) => <List.Icon {...props} icon="currency-usd" />}
-          right={(props) => <List.Icon {...props} icon="chevron-right" />}
-          onPress={() => {
-            // TODO: Implement currency selection
-            showMessage({
-              message: "Coming Soon",
-              description: "Currency selection will be available in the next update",
-              type: "info",
-            });
-          }}
-        />
-        <Divider />
-        <List.Item
-          title="Language"
-          description={settings.language}
-          left={(props) => <List.Icon {...props} icon="translate" />}
-          right={(props) => <List.Icon {...props} icon="chevron-right" />}
-          onPress={() => {
-            // TODO: Implement language selection
-            showMessage({
-              message: "Coming Soon",
-              description: "Language selection will be available in the next update",
-              type: "info",
-            });
-          }}
-        />
-      </Card.Content>
-    </Card>
-  );
-
-  const renderDataSettings = () => (
-    <Card style={styles.card}>
-      <Card.Content>
-        <Title style={styles.sectionTitle}>Data & Privacy</Title>
-        <List.Item
-          title="Export Data"
-          description="Download your portfolio data"
-          left={(props) => <List.Icon {...props} icon="download" />}
-          onPress={() => {
-            showMessage({
-              message: "Coming Soon",
-              description: "Data export will be available in the next update",
-              type: "info",
-            });
-          }}
-        />
-        <Divider />
-        <List.Item
-          title="Backup Settings"
-          description="Backup your app settings and preferences"
-          left={(props) => <List.Icon {...props} icon="cloud-upload" />}
-          onPress={() => {
-            showMessage({
-              message: "Coming Soon",
-              description: "Backup functionality will be available in the next update",
-              type: "info",
-            });
-          }}
-        />
-        <Divider />
-        <List.Item
-          title="Privacy Policy"
-          description="Read our privacy policy"
-          left={(props) => <List.Icon {...props} icon="shield-account" />}
-          onPress={() => {
-            showMessage({
-              message: "Privacy Policy",
-              description: "Privacy policy will be available in the next update",
-              type: "info",
-            });
-          }}
-        />
-        <Divider />
-        <List.Item
-          title="Terms of Service"
-          description="Read our terms of service"
-          left={(props) => <List.Icon {...props} icon="file-document" />}
-          onPress={() => {
-            showMessage({
-              message: "Terms of Service",
-              description: "Terms of service will be available in the next update",
-              type: "info",
-            });
-          }}
-        />
-      </Card.Content>
-    </Card>
-  );
-
-  const renderSupportSection = () => (
-    <Card style={styles.card}>
-      <Card.Content>
-        <Title style={styles.sectionTitle}>Support</Title>
-        <List.Item
-          title="Help & FAQ"
-          description="Get help and find answers to common questions"
-          left={(props) => <List.Icon {...props} icon="help-circle" />}
-          onPress={() => {
-            showMessage({
-              message: "Coming Soon",
-              description: "Help section will be available in the next update",
-              type: "info",
-            });
-          }}
-        />
-        <Divider />
-        <List.Item
-          title="Contact Support"
-          description="Get in touch with our support team"
-          left={(props) => <List.Icon {...props} icon="message" />}
-          onPress={() => {
-            showMessage({
-              message: "Coming Soon",
-              description: "Contact support will be available in the next update",
-              type: "info",
-            });
-          }}
-        />
-        <Divider />
-        <List.Item
-          title="Rate App"
-          description="Rate us on the App Store"
-          left={(props) => <List.Icon {...props} icon="star" />}
-          onPress={() => {
-            showMessage({
-              message: "Coming Soon",
-              description: "App rating will be available in the next update",
-              type: "info",
-            });
-          }}
-        />
-        <Divider />
-        <List.Item
-          title="About"
-          description="App version and information"
-          left={(props) => <List.Icon {...props} icon="information" />}
-          onPress={() => {
-            Alert.alert(
-              "About Dividend Tracker",
-              "Version 1.0.2\n\nA comprehensive dividend tracking app to help you manage your investment portfolio and track dividend income.\n\n© 2025 Dividend Tracker"
-            );
-          }}
-        />
-      </Card.Content>
-    </Card>
-  );
-
-  const renderLogoutSection = () => (
-    <Card style={styles.card}>
-      <Card.Content>
-        <Button mode="outlined" onPress={handleLogout} style={styles.logoutButton} textColor="#d32f2f" buttonColor="transparent">
-          Logout
-        </Button>
-      </Card.Content>
-    </Card>
-  );
-
-  if (loading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <Text>Loading...</Text>
-      </View>
-    );
-  }
+  const styles = StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+      padding: 16,
+    },
+    section: {
+      marginBottom: 24,
+    },
+    sectionTitle: {
+      fontSize: 18,
+      fontWeight: "bold",
+      color: colors.text,
+      marginBottom: 16,
+    },
+    card: {
+      backgroundColor: colors.surface,
+      marginBottom: 16,
+      elevation: 2,
+      shadowColor: colors.shadow,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+    },
+    listItem: {
+      backgroundColor: colors.surface,
+    },
+    listItemText: {
+      color: colors.text,
+    },
+    listItemDescription: {
+      color: colors.textSecondary,
+    },
+    radioButton: {
+      flexDirection: "row",
+      alignItems: "center",
+      paddingVertical: 8,
+    },
+    radioButtonText: {
+      color: colors.text,
+      marginLeft: 8,
+      fontSize: 16,
+    },
+    switchContainer: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      paddingVertical: 8,
+    },
+    switchLabel: {
+      color: colors.text,
+      fontSize: 16,
+    },
+    dangerButton: {
+      borderColor: colors.error,
+    },
+    dangerButtonText: {
+      color: colors.error,
+    },
+    logoutButton: {
+      marginTop: 16,
+      borderColor: colors.error,
+    },
+    logoutButtonText: {
+      color: colors.error,
+    },
+    versionText: {
+      textAlign: "center",
+      color: colors.textSecondary,
+      marginTop: 24,
+      fontSize: 12,
+    },
+  });
 
   return (
     <ScrollView style={styles.container}>
-      {renderProfileSection()}
-      {renderNotificationSettings()}
-      {renderAppSettings()}
-      {renderDataSettings()}
-      {renderSupportSection()}
-      {renderLogoutSection()}
+      {/* Appearance Section */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Appearance</Text>
+        <Card style={styles.card}>
+          <Card.Content>
+            <Title style={{ color: colors.text }}>Theme</Title>
+            <Paragraph style={{ color: colors.textSecondary, marginBottom: 16 }}>Choose your preferred theme</Paragraph>
+
+            <RadioButton.Group onValueChange={handleThemeChange} value={themeType}>
+              <View style={styles.radioButton}>
+                <RadioButton value={ThemeType.LIGHT} color={colors.primary} />
+                <Text style={styles.radioButtonText}>Light</Text>
+              </View>
+              <View style={styles.radioButton}>
+                <RadioButton value={ThemeType.DARK} color={colors.primary} />
+                <Text style={styles.radioButtonText}>Dark</Text>
+              </View>
+              <View style={styles.radioButton}>
+                <RadioButton value={ThemeType.SYSTEM} color={colors.primary} />
+                <Text style={styles.radioButtonText}>System</Text>
+              </View>
+            </RadioButton.Group>
+          </Card.Content>
+        </Card>
+      </View>
+
+      {/* Notifications Section */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Notifications</Text>
+        <Card style={styles.card}>
+          <Card.Content>
+            <View style={styles.switchContainer}>
+              <Text style={styles.switchLabel}>Push Notifications</Text>
+              <Switch
+                value={notificationsEnabled}
+                onValueChange={setNotificationsEnabled}
+                trackColor={{ false: colors.border, true: colors.primaryLight }}
+                thumbColor={notificationsEnabled ? colors.primary : colors.textDisabled}
+              />
+            </View>
+            <View style={styles.switchContainer}>
+              <Text style={styles.switchLabel}>Dividend Reminders</Text>
+              <Switch
+                value={notificationsEnabled}
+                onValueChange={setNotificationsEnabled}
+                trackColor={{ false: colors.border, true: colors.primaryLight }}
+                thumbColor={notificationsEnabled ? colors.primary : colors.textDisabled}
+              />
+            </View>
+            <View style={styles.switchContainer}>
+              <Text style={styles.switchLabel}>Market Updates</Text>
+              <Switch
+                value={notificationsEnabled}
+                onValueChange={setNotificationsEnabled}
+                trackColor={{ false: colors.border, true: colors.primaryLight }}
+                thumbColor={notificationsEnabled ? colors.primary : colors.textDisabled}
+              />
+            </View>
+          </Card.Content>
+        </Card>
+      </View>
+
+      {/* Security Section */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Security</Text>
+        <Card style={styles.card}>
+          <Card.Content>
+            <List.Item
+              title="Change Password"
+              description="Update your account password"
+              left={(props) => <List.Icon {...props} icon="lock" color={colors.primary} />}
+              right={(props) => <List.Icon {...props} icon="chevron-right" color={colors.textSecondary} />}
+              onPress={() => navigation.navigate("Profile")}
+              titleStyle={styles.listItemText}
+              descriptionStyle={styles.listItemDescription}
+            />
+            <Divider style={{ backgroundColor: colors.divider }} />
+            <View style={styles.switchContainer}>
+              <Text style={styles.switchLabel}>Biometric Authentication</Text>
+              <Switch
+                value={biometricEnabled}
+                onValueChange={setBiometricEnabled}
+                trackColor={{ false: colors.border, true: colors.primaryLight }}
+                thumbColor={biometricEnabled ? colors.primary : colors.textDisabled}
+              />
+            </View>
+          </Card.Content>
+        </Card>
+      </View>
+
+      {/* Data Management Section */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Data Management</Text>
+        <Card style={styles.card}>
+          <Card.Content>
+            <List.Item
+              title="Export Data"
+              description="Download your portfolio data"
+              left={(props) => <List.Icon {...props} icon="download" color={colors.primary} />}
+              right={(props) => <List.Icon {...props} icon="chevron-right" color={colors.textSecondary} />}
+              onPress={handleExportData}
+              titleStyle={styles.listItemText}
+              descriptionStyle={styles.listItemDescription}
+            />
+            <Divider style={{ backgroundColor: colors.divider }} />
+            <List.Item
+              title="Import Data"
+              description="Import portfolio data from file"
+              left={(props) => <List.Icon {...props} icon="upload" color={colors.primary} />}
+              right={(props) => <List.Icon {...props} icon="chevron-right" color={colors.textSecondary} />}
+              onPress={handleImportData}
+              titleStyle={styles.listItemText}
+              descriptionStyle={styles.listItemDescription}
+            />
+          </Card.Content>
+        </Card>
+      </View>
+
+      {/* Account Section */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Account</Text>
+        <Card style={styles.card}>
+          <Card.Content>
+            <List.Item
+              title="Profile"
+              description="View and edit your profile"
+              left={(props) => <List.Icon {...props} icon="account" color={colors.primary} />}
+              right={(props) => <List.Icon {...props} icon="chevron-right" color={colors.textSecondary} />}
+              onPress={() => navigation.navigate("Profile")}
+              titleStyle={styles.listItemText}
+              descriptionStyle={styles.listItemDescription}
+            />
+            <Divider style={{ backgroundColor: colors.divider }} />
+            <List.Item
+              title="Delete Account"
+              description="Permanently delete your account"
+              left={(props) => <List.Icon {...props} icon="delete" color={colors.error} />}
+              right={(props) => <List.Icon {...props} icon="chevron-right" color={colors.textSecondary} />}
+              onPress={handleDeleteAccount}
+              titleStyle={[styles.listItemText, { color: colors.error }]}
+              descriptionStyle={styles.listItemDescription}
+            />
+          </Card.Content>
+        </Card>
+      </View>
+
+      {/* Logout Button */}
+      <Button mode="outlined" onPress={handleLogout} style={styles.logoutButton} labelStyle={styles.logoutButtonText} icon="logout">
+        Logout
+      </Button>
+
+      {/* Version Info */}
+      <Text style={styles.versionText}>Version 1.0.0</Text>
     </ScrollView>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#f5f5f5",
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  card: {
-    margin: 16,
-    elevation: 4,
-  },
-  profileSection: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  profileInfo: {
-    flexDirection: "row",
-    alignItems: "center",
-    flex: 1,
-  },
-  avatar: {
-    backgroundColor: "#2196F3",
-  },
-  profileText: {
-    marginLeft: 16,
-    flex: 1,
-  },
-  profileName: {
-    fontSize: 18,
-    fontWeight: "bold",
-  },
-  profileEmail: {
-    fontSize: 14,
-    color: "#666",
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: "bold",
-    marginBottom: 8,
-  },
-  logoutButton: {
-    borderColor: "#d32f2f",
-    marginTop: 8,
-  },
-});
 
 export default SettingsScreen;

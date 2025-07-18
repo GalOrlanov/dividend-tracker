@@ -140,9 +140,18 @@ function getDividendDates(frequency, years, purchaseDate) {
       // Create ex-dividend date (typically 1-2 weeks before payment)
       const exDividendDate = new Date(year, month - 1, 15); // 15th of each month
 
-      // Only include if after purchase date and not in the past
-      if (exDividendDate > purchaseDate && exDividendDate > currentDate) {
-        dates.push(exDividendDate);
+      // For current year, only include future months (including current month)
+      // For future years, include all months
+      if (year === currentDate.getFullYear()) {
+        const currentMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+        if (exDividendDate > purchaseDate && exDividendDate >= currentMonth) {
+          dates.push(exDividendDate);
+        }
+      } else {
+        // For future years, include all months after purchase date
+        if (exDividendDate > purchaseDate) {
+          dates.push(exDividendDate);
+        }
       }
     }
   }

@@ -155,6 +155,9 @@ export const getForecastSummary = (forecastData) => {
       growthPercentage: 0,
       totalDividends: 0,
       years: 0,
+      initialDividendIncome: 0,
+      finalDividendIncome: 0,
+      dividendGrowthPercentage: 0,
     };
   }
 
@@ -164,6 +167,11 @@ export const getForecastSummary = (forecastData) => {
   const growthPercentage = initialValue > 0 ? ((finalValue - initialValue) / initialValue) * 100 : 0;
   const totalDividends = forecastData[forecastData.length - 1]?.totalDividendsReceived || 0;
 
+  // Calculate dividend income values
+  const initialDividendIncome = forecastData[1]?.dividendsReceived || 0; // First year dividend income
+  const finalDividendIncome = forecastData[forecastData.length - 1]?.dividendsReceived || 0; // Last year dividend income
+  const dividendGrowthPercentage = initialDividendIncome > 0 ? ((finalDividendIncome - initialDividendIncome) / initialDividendIncome) * 100 : 0;
+
   return {
     initialValue,
     finalValue,
@@ -171,5 +179,8 @@ export const getForecastSummary = (forecastData) => {
     growthPercentage,
     totalDividends,
     years: forecastData.length - 1,
+    initialDividendIncome,
+    finalDividendIncome,
+    dividendGrowthPercentage,
   };
 };

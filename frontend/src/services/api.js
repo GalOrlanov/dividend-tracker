@@ -200,6 +200,12 @@ export const portfolioAPI = {
   // Get dividend history
   getDividendHistory: () => api.get("/portfolio/dividend-history"),
 
+  // Get dividend chart data (aggregated by month)
+  getDividendChartData: (year) => api.get("/portfolio/dividend-chart-data", { params: { year } }),
+
+  // Get dividend data for specific month (for bar press)
+  getDividendMonthData: (year, month) => api.get("/portfolio/dividend-month-data", { params: { year, month } }),
+
   // Get upcoming dividend payouts
   getUpcomingPayouts: async () => {
     return await api.get("/portfolio/upcoming-payouts");
@@ -208,6 +214,16 @@ export const portfolioAPI = {
   // Generate future dividends
   generateFutureDividends: async () => {
     return await api.post("/portfolio/generate-future-dividends");
+  },
+
+  // Regenerate all dividend data
+  regenerateDividends: async () => {
+    return await api.post("/portfolio/regenerate-dividends");
+  },
+
+  // Refresh all portfolio data (prices, dividend yields, etc.)
+  refreshAll: async () => {
+    return await api.post("/portfolio/refresh-all");
   },
 };
 

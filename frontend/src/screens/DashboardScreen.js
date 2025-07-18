@@ -1,18 +1,18 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { View, ScrollView, StyleSheet, RefreshControl, Dimensions, TouchableOpacity, Alert } from "react-native";
-import { Card, Title, Paragraph, Button, Chip, ActivityIndicator, Text } from "react-native-paper";
-import Icon from "react-native-vector-icons/MaterialCommunityIcons";
-import { dividendAPI, portfolioAPI, marketDataAPI } from "../services/api";
-import { showMessage } from "react-native-flash-message";
+import { View, Text, StyleSheet, ScrollView, RefreshControl, ActivityIndicator, TouchableOpacity, Alert } from "react-native";
+import { Card, Title, Button } from "react-native-paper";
+import { MaterialIcons } from "@expo/vector-icons";
+import { useTheme } from "../context/ThemeContext";
+import { portfolioAPI, marketDataAPI } from "../services/api";
 import authService from "../services/auth";
-import ForecastChart from "../components/ForecastChart";
+import { showMessage } from "react-native-flash-message";
 import ETFCard from "../components/ETFCard";
 import StockCard from "../components/StockCard";
-
-const { width } = Dimensions.get("window");
+import ForecastChart from "../components/ForecastChart";
 
 const DashboardScreen = ({ navigation, route }) => {
-  const { onLogout } = route.params || {};
+  const { colors } = useTheme();
+  const onLogout = route.params?.onLogout;
 
   // Add logout function
   const handleLogout = () => {
@@ -23,10 +23,7 @@ const DashboardScreen = ({ navigation, route }) => {
         style: "destructive",
         onPress: async () => {
           await authService.logout();
-          // Call the onLogout function to update authentication state
-          if (onLogout) {
-            onLogout();
-          }
+          // The App.js will automatically detect the logout and show the auth screen
         },
       },
     ]);
@@ -37,7 +34,7 @@ const DashboardScreen = ({ navigation, route }) => {
     navigation.setOptions({
       headerRight: () => (
         <TouchableOpacity onPress={handleLogout} style={{ marginRight: 16 }}>
-          <Icon name="logout" size={24} color="white" />
+          <MaterialIcons name="logout" size={24} color="white" />
         </TouchableOpacity>
       ),
     });
@@ -144,15 +141,17 @@ const DashboardScreen = ({ navigation, route }) => {
         try {
           setStockLoading((prev) => ({ ...prev, [stock.symbol]: true }));
           const response = await marketDataAPI.getStockQuote(stock.symbol);
+          console.log(`📈 Received quote for ${stock.symbol}:`, response);
 
           // Extract the actual data from the response
           const quote = response.data || response;
+          console.log(`📈 Extracted quote data for ${stock.symbol}:`, quote);
 
           setStockLoading((prev) => ({ ...prev, [stock.symbol]: false }));
 
           return {
             ...stock,
-            currentPrice: quote.price || stock.currentPrice,
+            currentPrice: quote.price || stock.currentPrice || 0,
             change: quote.change || 0,
             changePercent: quote.changePercent || 0,
           };
@@ -165,7 +164,7 @@ const DashboardScreen = ({ navigation, route }) => {
 
       const stockResults = await Promise.all(stockPromises);
 
-      // Update portfolio data with current prices
+      // Update portfolio data with fresh stock quotes
       setPortfolioData((prev) => ({
         ...prev,
         portfolio: stockResults,
@@ -178,14 +177,16 @@ const DashboardScreen = ({ navigation, route }) => {
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
-      const portfolioResponse = await portfolioAPI.getPortfolio();
-      setPortfolioData(portfolioResponse.data);
+      const response = await portfolioAPI.getPortfolio();
+      console.log("📊 Portfolio data received:", response);
 
-      // Fetch current stock prices for portfolio
-      if (portfolioResponse.data?.portfolio) {
-        await fetchStockData(portfolioResponse.data.portfolio);
-      }
+      const portfolioData = response.data;
+      setPortfolioData(portfolioData);
+
+      // Fetch fresh stock data
+      await fetchStockData(portfolioData.portfolio);
     } catch (error) {
+      console.error("Error fetching dashboard data:", error);
       showMessage({
         message: "Error",
         description: "Failed to load dashboard data",
@@ -240,20 +241,90 @@ const DashboardScreen = ({ navigation, route }) => {
 
   const forecastParams = getForecastParameters();
 
+  const styles = StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    loadingContainer: {
+      flex: 1,
+      justifyContent: "center",
+      alignItems: "center",
+      backgroundColor: colors.background,
+    },
+    loadingText: {
+      marginTop: 16,
+      fontSize: 16,
+      color: colors.textSecondary,
+    },
+    etfContainer: {
+      padding: 16,
+    },
+    sectionTitle: {
+      fontSize: 20,
+      fontWeight: "bold",
+      color: colors.text,
+      marginBottom: 16,
+    },
+    etfGrid: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      justifyContent: "space-between",
+    },
+    etfCardWrapper: {
+      width: "48%",
+      marginBottom: 12,
+    },
+    stocksCard: {
+      margin: 16,
+      backgroundColor: colors.surface,
+      elevation: 2,
+      shadowColor: colors.shadow,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+    },
+    stocksHeader: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      marginBottom: 16,
+    },
+    stocksTitle: {
+      fontSize: 18,
+      fontWeight: "bold",
+      color: colors.text,
+    },
+    emptyState: {
+      alignItems: "center",
+      paddingVertical: 32,
+    },
+    emptyText: {
+      marginTop: 16,
+      fontSize: 16,
+      color: colors.textSecondary,
+      textAlign: "center",
+    },
+    addStockButton: {
+      marginTop: 16,
+      borderColor: colors.primary,
+    },
+  });
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#2196F3" />
+        <ActivityIndicator size="large" color={colors.primary} />
         <Text style={styles.loadingText}>Loading dashboard...</Text>
       </View>
     );
   }
 
   return (
-    <ScrollView style={styles.container} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={["#2196F3"]} tintColor="#2196F3" />}>
+    <ScrollView style={styles.container} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} tintColor={colors.primary} />}>
       {/* ETF Cards */}
       <View style={styles.etfContainer}>
-        <Title style={styles.sectionTitle}>Market Indices</Title>
+        <Text style={styles.sectionTitle}>Market Indices</Text>
         <View style={styles.etfGrid}>
           {popularETFs.map((etf, index) => (
             <View key={etf.symbol} style={styles.etfCardWrapper}>
@@ -278,7 +349,7 @@ const DashboardScreen = ({ navigation, route }) => {
       <Card style={styles.stocksCard}>
         <Card.Content>
           <View style={styles.stocksHeader}>
-            <Title style={styles.stocksTitle}>Portfolio Stocks</Title>
+            <Text style={styles.stocksTitle}>Portfolio Stocks</Text>
             <Button mode="text" onPress={() => navigation.navigate("Portfolio")} compact>
               View All
             </Button>
@@ -288,9 +359,9 @@ const DashboardScreen = ({ navigation, route }) => {
             portfolioData.portfolio.map((stock, index) => <StockCard key={stock._id || stock.symbol || index} stock={stock} isLoading={stockLoading[stock.symbol]} />)
           ) : (
             <View style={styles.emptyState}>
-              <Icon name="chart-line" size={48} color="#757575" />
+              <MaterialIcons name="chart-line" size={48} color={colors.textSecondary} />
               <Text style={styles.emptyText}>No stocks in portfolio</Text>
-              <Button mode="outlined" onPress={() => navigation.navigate("Search")} style={styles.addStockButton}>
+              <Button mode="outlined" onPress={() => navigation.navigate("Search")} style={styles.addStockButton} textColor={colors.primary}>
                 Add Stocks
               </Button>
             </View>
@@ -300,67 +371,5 @@ const DashboardScreen = ({ navigation, route }) => {
     </ScrollView>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#F5F5F5",
-    padding: 16,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "#F5F5F5",
-  },
-  loadingText: {
-    marginTop: 16,
-    fontSize: 16,
-    color: "#757575",
-  },
-  etfContainer: {
-    marginBottom: 16,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    marginBottom: 12,
-    color: "#212121",
-  },
-  etfGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "space-between",
-    marginTop: 8,
-  },
-  etfCardWrapper: {
-    width: "48%", // Two columns with some spacing
-    marginBottom: 12,
-  },
-  stocksCard: {
-    marginBottom: 16,
-  },
-  stocksHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 16,
-  },
-  stocksTitle: {
-    fontSize: 18,
-  },
-  emptyState: {
-    alignItems: "center",
-    paddingVertical: 32,
-  },
-  emptyText: {
-    marginTop: 8,
-    fontSize: 16,
-    color: "#757575",
-    marginBottom: 16,
-  },
-  addStockButton: {
-    marginTop: 8,
-  },
-});
 
 export default DashboardScreen;
