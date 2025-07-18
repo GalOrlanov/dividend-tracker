@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Dimensions, Alert } from "react-native";
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Dimensions, Alert, ActivityIndicator } from "react-native";
 import { Card, Title, Paragraph, Button, TextInput, Portal, Modal, IconButton, Menu, Divider, Chip, FAB } from "react-native-paper";
 import { MaterialIcons } from "@expo/vector-icons";
 import { BarChart, PieChart } from "react-native-gifted-charts";
 
-import { portfolioAPI, marketDataAPI } from "../services/api";
+import { portfolioAPI } from "../services/api";
 import authService from "../services/auth";
 import { showMessage } from "react-native-flash-message";
 import PurchaseHistoryModal from "../components/PurchaseHistoryModal";
@@ -44,7 +44,12 @@ const PortfolioScreen = ({ navigation }) => {
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedTab, setSelectedTab] = useState("portfolio");
-  const [stockLoading, setStockLoading] = useState({});
+
+  // Separate loading states for each data type
+  const [portfolioLoading, setPortfolioLoading] = useState(false);
+  const [dividendHistoryLoading, setDividendHistoryLoading] = useState(false);
+  const [upcomingPayoutsLoading, setUpcomingPayoutsLoading] = useState(false);
+  const [chartDataLoading, setChartDataLoading] = useState(false);
 
   const [menuVisible, setMenuVisible] = useState(null);
   const [editModalVisible, setEditModalVisible] = useState(false);
@@ -59,6 +64,7 @@ const PortfolioScreen = ({ navigation }) => {
   const [chartData, setChartData] = useState(null);
 
   useEffect(() => {
+    // Load each data type independently for better UX
     loadPortfolio();
     loadDividendHistory();
     loadUpcomingPayouts();
@@ -97,60 +103,12 @@ const PortfolioScreen = ({ navigation }) => {
     }
   }, [selectedYear]);
 
-  const fetchStockData = async (portfolio) => {
-    if (!portfolio || portfolio.length === 0) return;
-
-    try {
-      // Initialize loading state for all stocks
-      const initialLoadingState = {};
-      portfolio.forEach((stock) => {
-        initialLoadingState[stock.symbol] = true;
-      });
-      setStockLoading(initialLoadingState);
-
-      const stockPromises = portfolio.map(async (stock) => {
-        try {
-          setStockLoading((prev) => ({ ...prev, [stock.symbol]: true }));
-          const response = await marketDataAPI.getStockQuote(stock.symbol);
-
-          // Extract the actual data from the response
-          const quote = response.data || response;
-
-          setStockLoading((prev) => ({ ...prev, [stock.symbol]: false }));
-
-          return {
-            ...stock,
-            currentPrice: quote.price || stock.currentPrice,
-            change: quote.change || 0,
-            changePercent: quote.changePercent || 0,
-          };
-        } catch (error) {
-          console.error(`Error fetching ${stock.symbol}:`, error);
-          setStockLoading((prev) => ({ ...prev, [stock.symbol]: false }));
-          return stock;
-        }
-      });
-
-      const stockResults = await Promise.all(stockPromises);
-
-      // Update portfolio data with current prices
-      setPortfolio(stockResults);
-    } catch (error) {
-      console.error("Error fetching stock data:", error);
-    }
-  };
-
   const loadPortfolio = async () => {
     try {
-      setLoading(true);
+      setPortfolioLoading(true);
       const response = await portfolioAPI.getPortfolio();
       setPortfolio(response.data.portfolio);
       setTotals(response.data.totals);
-
-      // Fetch current stock prices for portfolio
-      if (response.data?.portfolio) {
-        await fetchStockData(response.data.portfolio);
-      }
     } catch (error) {
       console.error("Error loading portfolio:", error);
       showMessage({
@@ -159,52 +117,54 @@ const PortfolioScreen = ({ navigation }) => {
         type: "danger",
       });
     } finally {
-      setLoading(false);
+      setPortfolioLoading(false);
     }
   };
 
   const loadDividendHistory = async () => {
     try {
+      setDividendHistoryLoading(true);
       const response = await portfolioAPI.getDividendHistory();
       const data = response.data;
       setDividendHistory(data.history || []);
     } catch (error) {
       console.error("Error loading dividend history:", error);
+    } finally {
+      setDividendHistoryLoading(false);
     }
   };
 
   const loadUpcomingPayouts = async () => {
     try {
+      setUpcomingPayoutsLoading(true);
       const response = await portfolioAPI.getUpcomingPayouts();
       const data = response.data;
       setUpcomingPayouts(data.upcomingPayouts || []);
     } catch (error) {
       console.error("Error loading upcoming payouts:", error);
+    } finally {
+      setUpcomingPayoutsLoading(false);
     }
   };
 
   const loadChartData = async (year) => {
     try {
+      setChartDataLoading(true);
       const response = await portfolioAPI.getDividendChartData(year);
       setChartData(response.data);
     } catch (error) {
       console.error("Error loading chart data:", error);
       // Fallback to null if API fails
       setChartData(null);
+    } finally {
+      setChartDataLoading(false);
     }
   };
 
   const onRefresh = async () => {
     setRefreshing(true);
     try {
-      // Reset stock loading states
-      const initialLoadingState = {};
-      portfolio.forEach((stock) => {
-        initialLoadingState[stock.symbol] = true;
-      });
-      setStockLoading(initialLoadingState);
-
-      // Reload all data including current stock prices and chart data
+      // Refresh each data type independently
       await Promise.all([loadPortfolio(), loadDividendHistory(), loadUpcomingPayouts(), loadChartData(selectedYear)]);
     } catch (error) {
       console.error("❌ Error during refresh:", error);
@@ -533,27 +493,21 @@ const PortfolioScreen = ({ navigation }) => {
             <View style={styles.detailRow}>
               <Text style={styles.detailLabel}>Current Price:</Text>
               <View style={styles.priceChangeContainer}>
-                {stockLoading[stock.symbol] ? (
-                  <Text style={styles.detailValue}>Loading...</Text>
-                ) : (
-                  <>
-                    <Text style={styles.detailValue}>{formatCurrency(stock.currentPrice)}</Text>
-                    {(stock.change !== undefined && stock.change !== 0) || (stock.priceChange !== undefined && stock.priceChange !== 0) ? (
-                      <View style={styles.changeIndicator}>
-                        <MaterialIcons
-                          name={stock.change >= 0 || stock.priceChange >= 0 ? "trending-up" : "trending-down"}
-                          size={16}
-                          color={stock.change >= 0 || stock.priceChange >= 0 ? "#4CAF50" : "#F44336"}
-                        />
-                        <Text style={[styles.changeText, { color: stock.change >= 0 || stock.priceChange >= 0 ? "#4CAF50" : "#F44336" }]}>
-                          {stock.change >= 0 || stock.priceChange >= 0 ? "+" : ""}
-                          {formatCurrency(stock.change || stock.priceChange)} ({stock.changePercent >= 0 || stock.priceChangePercent >= 0 ? "+" : ""}
-                          {(stock.changePercent || stock.priceChangePercent)?.toFixed(2)}%)
-                        </Text>
-                      </View>
-                    ) : null}
-                  </>
-                )}
+                <Text style={styles.detailValue}>{formatCurrency(stock.currentPrice)}</Text>
+                {(stock.change !== undefined && stock.change !== 0) || (stock.priceChange !== undefined && stock.priceChange !== 0) ? (
+                  <View style={styles.changeIndicator}>
+                    <MaterialIcons
+                      name={stock.change >= 0 || stock.priceChange >= 0 ? "trending-up" : "trending-down"}
+                      size={16}
+                      color={stock.change >= 0 || stock.priceChange >= 0 ? "#4CAF50" : "#F44336"}
+                    />
+                    <Text style={[styles.changeText, { color: stock.change >= 0 || stock.priceChange >= 0 ? "#4CAF50" : "#F44336" }]}>
+                      {stock.change >= 0 || stock.priceChange >= 0 ? "+" : ""}
+                      {formatCurrency(stock.change || stock.priceChange)} ({stock.changePercent >= 0 || stock.priceChangePercent >= 0 ? "+" : ""}
+                      {(stock.changePercent || stock.priceChangePercent)?.toFixed(2)}%)
+                    </Text>
+                  </View>
+                ) : null}
               </View>
             </View>
             <View style={styles.detailRow}>
@@ -662,26 +616,20 @@ const PortfolioScreen = ({ navigation }) => {
           <TouchableOpacity onPress={() => openDetailModal(stock)} style={styles.compactContent}>
             <View style={styles.compactRow}>
               <View style={styles.priceChangeContainer}>
-                {stockLoading[stock.symbol] ? (
-                  <Text style={styles.compactStat}>Price: Loading...</Text>
-                ) : (
-                  <>
-                    <Text style={styles.compactStat}>Price: {formatCurrency(stock.currentPrice)}</Text>
-                    {(stock.change !== undefined && stock.change !== 0) || (stock.priceChange !== undefined && stock.priceChange !== 0) ? (
-                      <View style={styles.changeIndicator}>
-                        <MaterialIcons
-                          name={stock.change >= 0 || stock.priceChange >= 0 ? "trending-up" : "trending-down"}
-                          size={14}
-                          color={stock.change >= 0 || stock.priceChange >= 0 ? "#4CAF50" : "#F44336"}
-                        />
-                        <Text style={[styles.changeText, { color: stock.change >= 0 || stock.priceChange >= 0 ? "#4CAF50" : "#F44336" }]}>
-                          {stock.change >= 0 || stock.priceChange >= 0 ? "+" : ""}
-                          {(stock.changePercent || stock.priceChangePercent)?.toFixed(2)}%
-                        </Text>
-                      </View>
-                    ) : null}
-                  </>
-                )}
+                <Text style={styles.compactStat}>Price: {formatCurrency(stock.currentPrice)}</Text>
+                {(stock.change !== undefined && stock.change !== 0) || (stock.priceChange !== undefined && stock.priceChange !== 0) ? (
+                  <View style={styles.changeIndicator}>
+                    <MaterialIcons
+                      name={stock.change >= 0 || stock.priceChange >= 0 ? "trending-up" : "trending-down"}
+                      size={14}
+                      color={stock.change >= 0 || stock.priceChange >= 0 ? "#4CAF50" : "#F44336"}
+                    />
+                    <Text style={[styles.changeText, { color: stock.change >= 0 || stock.priceChange >= 0 ? "#4CAF50" : "#F44336" }]}>
+                      {stock.change >= 0 || stock.priceChange >= 0 ? "+" : ""}
+                      {(stock.changePercent || stock.priceChangePercent)?.toFixed(2)}%
+                    </Text>
+                  </View>
+                ) : null}
               </View>
               <Text style={styles.compactStat}>Yield: {formatPercentage(stock.dividendYield)}</Text>
             </View>
@@ -885,24 +833,31 @@ const PortfolioScreen = ({ navigation }) => {
         <Card style={styles.summaryCard}>
           <Card.Content>
             <Title>Upcoming Dividend Payouts</Title>
-            <View style={styles.summaryGrid}>
-              <View style={styles.summaryItem}>
-                <Text style={styles.summaryLabel}>Next 30 Days</Text>
-                <Text style={styles.summaryValue}>
-                  {formatCurrency(upcomingPayouts.filter((payout) => getDaysUntil(payout.payoutDate) <= 30).reduce((sum, payout) => sum + payout.totalAmount, 0))}
-                </Text>
+            {upcomingPayoutsLoading ? (
+              <View style={styles.sectionLoading}>
+                <ActivityIndicator size="small" color="#4CAF50" />
+                <Text style={styles.sectionLoadingText}>Loading upcoming payouts...</Text>
               </View>
-              <View style={styles.summaryItem}>
-                <Text style={styles.summaryLabel}>Next 90 Days</Text>
-                <Text style={styles.summaryValue}>
-                  {formatCurrency(upcomingPayouts.filter((payout) => getDaysUntil(payout.payoutDate) <= 90).reduce((sum, payout) => sum + payout.totalAmount, 0))}
-                </Text>
+            ) : (
+              <View style={styles.summaryGrid}>
+                <View style={styles.summaryItem}>
+                  <Text style={styles.summaryLabel}>Next 30 Days</Text>
+                  <Text style={styles.summaryValue}>
+                    {formatCurrency(upcomingPayouts.filter((payout) => getDaysUntil(payout.payoutDate) <= 30).reduce((sum, payout) => sum + payout.totalAmount, 0))}
+                  </Text>
+                </View>
+                <View style={styles.summaryItem}>
+                  <Text style={styles.summaryLabel}>Next 90 Days</Text>
+                  <Text style={styles.summaryValue}>
+                    {formatCurrency(upcomingPayouts.filter((payout) => getDaysUntil(payout.payoutDate) <= 90).reduce((sum, payout) => sum + payout.totalAmount, 0))}
+                  </Text>
+                </View>
+                <View style={styles.summaryItem}>
+                  <Text style={styles.summaryLabel}>Total Upcoming</Text>
+                  <Text style={styles.summaryValue}>{formatCurrency(upcomingPayouts.reduce((sum, payout) => sum + payout.totalAmount, 0))}</Text>
+                </View>
               </View>
-              <View style={styles.summaryItem}>
-                <Text style={styles.summaryLabel}>Total Upcoming</Text>
-                <Text style={styles.summaryValue}>{formatCurrency(upcomingPayouts.reduce((sum, payout) => sum + payout.totalAmount, 0))}</Text>
-              </View>
-            </View>
+            )}
           </Card.Content>
         </Card>
 
@@ -910,7 +865,12 @@ const PortfolioScreen = ({ navigation }) => {
         <Card style={styles.calendarCard}>
           <Card.Content>
             <Title>Upcoming Payouts</Title>
-            {groupedPayouts.length === 0 ? (
+            {upcomingPayoutsLoading ? (
+              <View style={styles.sectionLoading}>
+                <ActivityIndicator size="small" color="#4CAF50" />
+                <Text style={styles.sectionLoadingText}>Loading payout details...</Text>
+              </View>
+            ) : groupedPayouts.length === 0 ? (
               <View style={styles.emptyState}>
                 <MaterialIcons name="event" size={64} color="#ccc" />
                 <Text style={styles.emptyText}>No upcoming payouts</Text>
@@ -980,56 +940,81 @@ const PortfolioScreen = ({ navigation }) => {
           <View style={{ marginBottom: 16 }}>
             <Title>Portfolio Summary</Title>
           </View>
-          <View style={styles.summaryGrid}>
-            <View style={styles.summaryItem}>
-              <Text style={styles.summaryLabel}>Total Investment</Text>
-              <Text style={styles.summaryValue}>{formatCurrency(totals.totalInvestment || 0)}</Text>
+          {portfolioLoading ? (
+            <View style={styles.sectionLoading}>
+              <ActivityIndicator size="small" color="#4CAF50" />
+              <Text style={styles.sectionLoadingText}>Loading portfolio data...</Text>
             </View>
-            <View style={styles.summaryItem}>
-              <Text style={styles.summaryLabel}>Current Value</Text>
-              <Text style={styles.summaryValue}>{formatCurrency(totals.currentValue || 0)}</Text>
+          ) : (
+            <View style={styles.summaryGrid}>
+              <View style={styles.summaryItem}>
+                <Text style={styles.summaryLabel}>Total Investment</Text>
+                <Text style={styles.summaryValue}>{formatCurrency(totals.totalInvestment || 0)}</Text>
+              </View>
+              <View style={styles.summaryItem}>
+                <Text style={styles.summaryLabel}>Current Value</Text>
+                <Text style={styles.summaryValue}>{formatCurrency(totals.currentValue || 0)}</Text>
+              </View>
+              <View style={styles.summaryItem}>
+                <Text style={styles.summaryLabel}>Annual Dividends</Text>
+                <Text style={styles.summaryValue}>{formatCurrency(totals.totalDividendIncome || 0)}</Text>
+              </View>
+              <View style={styles.summaryItem}>
+                <Text style={styles.summaryLabel}>Monthly Dividends</Text>
+                <Text style={styles.summaryValue}>{formatCurrency((totals.totalDividendIncome || 0) / 12)}</Text>
+              </View>
+              <View style={styles.summaryItem}>
+                <Text style={styles.summaryLabel}>Daily Dividends</Text>
+                <Text style={styles.summaryValue}>{formatCurrency((totals.totalDividendIncome || 0) / 365)}</Text>
+              </View>
+              <View style={styles.summaryItem}>
+                <Text style={styles.summaryLabel}>Avg Yield</Text>
+                <Text style={styles.summaryValue}>{formatPercentage(totals.averageYield || 0)}</Text>
+              </View>
             </View>
-            <View style={styles.summaryItem}>
-              <Text style={styles.summaryLabel}>Annual Dividends</Text>
-              <Text style={styles.summaryValue}>{formatCurrency(totals.totalDividendIncome || 0)}</Text>
-            </View>
-            <View style={styles.summaryItem}>
-              <Text style={styles.summaryLabel}>Monthly Dividends</Text>
-              <Text style={styles.summaryValue}>{formatCurrency((totals.totalDividendIncome || 0) / 12)}</Text>
-            </View>
-            <View style={styles.summaryItem}>
-              <Text style={styles.summaryLabel}>Daily Dividends</Text>
-              <Text style={styles.summaryValue}>{formatCurrency((totals.totalDividendIncome || 0) / 365)}</Text>
-            </View>
-            <View style={styles.summaryItem}>
-              <Text style={styles.summaryLabel}>Avg Yield</Text>
-              <Text style={styles.summaryValue}>{formatPercentage(totals.averageYield || 0)}</Text>
-            </View>
-          </View>
+          )}
         </Card.Content>
       </Card>
 
       {/* Enhanced Dividend History Chart */}
-      {dividendHistory.length > 0 && renderEnhancedChart()}
+      {chartDataLoading ? (
+        <Card style={styles.chartCard}>
+          <Card.Content>
+            <View style={styles.sectionLoading}>
+              <ActivityIndicator size="small" color="#4CAF50" />
+              <Text style={styles.sectionLoadingText}>Loading chart data...</Text>
+            </View>
+          </Card.Content>
+        </Card>
+      ) : (
+        dividendHistory.length > 0 && renderEnhancedChart()
+      )}
 
       {/* Dividend History Summary */}
       <Card style={styles.historyCard}>
         <Card.Content>
           <Title>Dividend History</Title>
-          <View style={styles.historySummary}>
-            <View style={styles.historyItem}>
-              <Text style={styles.historyLabel}>Total Received</Text>
-              <Text style={styles.historyValue}>{formatCurrency(totals.totalReceived || 0)}</Text>
+          {dividendHistoryLoading ? (
+            <View style={styles.sectionLoading}>
+              <ActivityIndicator size="small" color="#4CAF50" />
+              <Text style={styles.sectionLoadingText}>Loading dividend history...</Text>
             </View>
-            <View style={styles.historyItem}>
-              <Text style={styles.historyLabel}>This Year</Text>
-              <Text style={styles.historyValue}>{formatCurrency(totals.totalThisYear || 0)}</Text>
+          ) : (
+            <View style={styles.historySummary}>
+              <View style={styles.historyItem}>
+                <Text style={styles.historyLabel}>Total Received</Text>
+                <Text style={styles.historyValue}>{formatCurrency(totals.totalReceived || 0)}</Text>
+              </View>
+              <View style={styles.historyItem}>
+                <Text style={styles.historyLabel}>This Year</Text>
+                <Text style={styles.historyValue}>{formatCurrency(totals.totalThisYear || 0)}</Text>
+              </View>
+              <View style={styles.historyItem}>
+                <Text style={styles.historyLabel}>This Month</Text>
+                <Text style={styles.historyValue}>{formatCurrency(totals.totalThisMonth || 0)}</Text>
+              </View>
             </View>
-            <View style={styles.historyItem}>
-              <Text style={styles.historyLabel}>This Month</Text>
-              <Text style={styles.historyValue}>{formatCurrency(totals.totalThisMonth || 0)}</Text>
-            </View>
-          </View>
+          )}
         </Card.Content>
       </Card>
 
@@ -1039,7 +1024,12 @@ const PortfolioScreen = ({ navigation }) => {
       <Card style={styles.holdingsCard}>
         <Card.Content>
           <Title>Portfolio Holdings</Title>
-          {portfolio.length === 0 ? (
+          {portfolioLoading ? (
+            <View style={styles.sectionLoading}>
+              <ActivityIndicator size="small" color="#4CAF50" />
+              <Text style={styles.sectionLoadingText}>Loading holdings...</Text>
+            </View>
+          ) : portfolio.length === 0 ? (
             <View style={styles.emptyState}>
               <MaterialIcons name="account-balance-wallet" size={64} color="#ccc" />
               <Text style={styles.emptyText}>No stocks in portfolio</Text>
@@ -1082,9 +1072,16 @@ const PortfolioScreen = ({ navigation }) => {
         {renderTabButton("calendar", "Calendar", "event")}
       </View>
 
-      <ScrollView testID="portfolio-scroll-view" refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />} style={styles.scrollView}>
-        {selectedTab === "portfolio" ? renderPortfolioSection() : renderCalendarSection()}
-      </ScrollView>
+      {portfolioLoading && portfolio.length === 0 ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#4CAF50" />
+          <Text style={styles.loadingText}>Loading portfolio...</Text>
+        </View>
+      ) : (
+        <ScrollView testID="portfolio-scroll-view" refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />} style={styles.scrollView}>
+          {selectedTab === "portfolio" ? renderPortfolioSection() : renderCalendarSection()}
+        </ScrollView>
+      )}
 
       {/* FAB for adding stocks */}
       <FAB testID="add-stock-fab" style={styles.fab} icon="plus" onPress={() => navigation.navigate("Search")} />
@@ -2087,6 +2084,28 @@ const styles = StyleSheet.create({
   dividendBreakdown: {
     alignItems: "flex-end",
     marginTop: 2,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#f5f5f5",
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 16,
+    color: "#666",
+  },
+  sectionLoading: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 20,
+  },
+  sectionLoadingText: {
+    marginLeft: 10,
+    fontSize: 14,
+    color: "#666",
   },
 });
 

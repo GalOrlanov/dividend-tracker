@@ -45,93 +45,73 @@ router.get("/", auth, async (req, res) => {
       // Use the most recent current price and dividend data
       const latestEntry = entries.reduce((latest, current) => (current.lastUpdated > latest.lastUpdated ? current : latest));
 
-      // Fetch fresh stock quote for accurate current price
+      // Use stored data first, only fetch fresh data if it's older than 5 minutes
       let currentPrice = latestEntry.currentPrice;
       let priceChange = latestEntry.priceChange;
       let priceChangePercent = latestEntry.priceChangePercent;
-
-      console.log(`🔍 [PORTFOLIO] Initial values for ${symbol}: currentPrice=${currentPrice}, totalShares=${totalShares}`);
-
-      // Fetch fresh price and dividend data from Polygon API
       let freshDividendYield = latestEntry.dividendYield;
       let freshDividendPerShare = latestEntry.dividendPerShare;
       let freshPayoutFrequency = latestEntry.payoutFrequency;
 
-      try {
-        console.log(`🔍 [PORTFOLIO] Fetching fresh data for ${symbol}...`);
-        const [quote, overview] = await Promise.all([stockService.getStockQuote(symbol), stockService.getCompanyOverview(symbol)]);
+      // Check if data is fresh (less than 5 minutes old)
+      const dataAge = Date.now() - new Date(latestEntry.lastUpdated).getTime();
+      const isDataFresh = dataAge < 5 * 60 * 1000; // 5 minutes
 
-        console.log(`🔍 [PORTFOLIO] Fresh quote for ${symbol}:`, quote);
-        console.log(`🔍 [PORTFOLIO] Fresh overview for ${symbol}:`, overview);
-        console.log(`🔍 [PORTFOLIO] Overview dividend yield for ${symbol}:`, overview?.dividendYield);
-        console.log(`🔍 [PORTFOLIO] Overview dividend per share for ${symbol}:`, overview?.dividendPerShare);
-
-        // Update price data
-        if (quote && quote.price && quote.price > 0) {
-          currentPrice = parseFloat(quote.price);
-          priceChange = parseFloat(quote.change) || 0;
-          priceChangePercent = parseFloat(quote.changePercent) || 0;
-          console.log(`✅ [PORTFOLIO] Using fresh quote price for ${symbol}: currentPrice=${currentPrice}`);
-        } else if (quote && quote.previousClose && quote.previousClose > 0) {
-          currentPrice = parseFloat(quote.previousClose);
-          priceChange = parseFloat(quote.change) || 0;
-          priceChangePercent = parseFloat(quote.changePercent) || 0;
-          console.log(`✅ [PORTFOLIO] Using previousClose for ${symbol}: currentPrice=${currentPrice}`);
-        } else {
-          console.log(`⚠️ [PORTFOLIO] Fresh quote has no valid price or previousClose for ${symbol}, keeping stored value: currentPrice=${currentPrice}`);
-        }
-
-        // Update dividend data
-        if (overview && overview.dividendYield !== undefined && overview.dividendYield > 0) {
-          freshDividendYield = parseFloat(overview.dividendYield);
-          console.log(`✅ [PORTFOLIO] Using fresh dividend yield for ${symbol}: ${freshDividendYield}%`);
-        } else {
-          console.log(`⚠️ [PORTFOLIO] Fresh overview has no valid dividend yield for ${symbol}, keeping stored value: ${freshDividendYield}%`);
-        }
-
-        if (overview && overview.dividendPerShare !== undefined && overview.dividendPerShare > 0) {
-          freshDividendPerShare = parseFloat(overview.dividendPerShare);
-          console.log(`✅ [PORTFOLIO] Using fresh dividend per share for ${symbol}: $${freshDividendPerShare}`);
-        } else {
-          console.log(`⚠️ [PORTFOLIO] Fresh overview has no valid dividend per share for ${symbol}, keeping stored value: $${freshDividendPerShare}`);
-        }
-
-        if (overview && overview.payoutFrequency) {
-          freshPayoutFrequency = overview.payoutFrequency;
-          console.log(`✅ [PORTFOLIO] Using fresh payout frequency for ${symbol}: ${freshPayoutFrequency}`);
-        }
-      } catch (err) {
-        console.warn(`❌ [PORTFOLIO] Failed to fetch fresh data for ${symbol}:`, err.message);
-        console.warn(`❌ [PORTFOLIO] Error details for ${symbol}:`, err);
-
-        // Try fetching overview data separately as fallback
+      if (!isDataFresh) {
         try {
-          console.log(`🔄 [PORTFOLIO] Trying to fetch overview data separately for ${symbol}...`);
-          const fallbackOverview = await stockService.getCompanyOverview(symbol);
-          console.log(`🔄 [PORTFOLIO] Fallback overview for ${symbol}:`, fallbackOverview);
+          console.log(`🔄 [PORTFOLIO] Fetching fresh data for ${symbol} (data age: ${Math.round(dataAge / 1000)}s)`);
 
-          if (fallbackOverview && fallbackOverview.dividendYield !== undefined && fallbackOverview.dividendYield > 0) {
-            freshDividendYield = parseFloat(fallbackOverview.dividendYield);
-            console.log(`✅ [PORTFOLIO] Using fallback dividend yield for ${symbol}: ${freshDividendYield}%`);
+          // Fetch quote and overview in parallel
+          const [quote, overview] = await Promise.all([stockService.getStockQuote(symbol), stockService.getCompanyOverview(symbol)]);
+
+          // Update price data
+          if (quote && quote.price && quote.price > 0) {
+            currentPrice = parseFloat(quote.price);
+            priceChange = parseFloat(quote.change) || 0;
+            priceChangePercent = parseFloat(quote.changePercent) || 0;
+            console.log(`✅ [PORTFOLIO] Using fresh quote price for ${symbol}: currentPrice=${currentPrice}`);
+          } else if (quote && quote.previousClose && quote.previousClose > 0) {
+            currentPrice = parseFloat(quote.previousClose);
+            priceChange = parseFloat(quote.change) || 0;
+            priceChangePercent = parseFloat(quote.changePercent) || 0;
+            console.log(`✅ [PORTFOLIO] Using previousClose for ${symbol}: currentPrice=${currentPrice}`);
           }
 
-          if (fallbackOverview && fallbackOverview.dividendPerShare !== undefined && fallbackOverview.dividendPerShare > 0) {
-            freshDividendPerShare = parseFloat(fallbackOverview.dividendPerShare);
-            console.log(`✅ [PORTFOLIO] Using fallback dividend per share for ${symbol}: $${freshDividendPerShare}`);
+          // Update dividend data
+          if (overview && overview.dividendYield !== undefined && overview.dividendYield > 0) {
+            freshDividendYield = parseFloat(overview.dividendYield);
+          }
+          if (overview && overview.dividendPerShare !== undefined && overview.dividendPerShare > 0) {
+            freshDividendPerShare = parseFloat(overview.dividendPerShare);
+          }
+          if (overview && overview.payoutFrequency) {
+            freshPayoutFrequency = overview.payoutFrequency;
           }
 
-          if (fallbackOverview && fallbackOverview.payoutFrequency) {
-            freshPayoutFrequency = fallbackOverview.payoutFrequency;
-            console.log(`✅ [PORTFOLIO] Using fallback payout frequency for ${symbol}: ${freshPayoutFrequency}`);
-          }
-        } catch (fallbackErr) {
-          console.warn(`❌ [PORTFOLIO] Fallback overview fetch also failed for ${symbol}:`, fallbackErr.message);
+          // Update the database with fresh data
+          await Portfolio.updateMany(
+            { user: req.user._id, symbol: symbol },
+            {
+              currentPrice: currentPrice,
+              priceChange: priceChange,
+              priceChangePercent: priceChangePercent,
+              dividendYield: freshDividendYield,
+              dividendPerShare: freshDividendPerShare,
+              payoutFrequency: freshPayoutFrequency,
+              lastUpdated: new Date(),
+            }
+          );
+        } catch (err) {
+          console.warn(`❌ [PORTFOLIO] Failed to fetch fresh data for ${symbol}:`, err.message);
+          // Continue with stored data
         }
+      } else {
+        console.log(`✅ [PORTFOLIO] Using cached data for ${symbol} (age: ${Math.round(dataAge / 1000)}s)`);
       }
 
       // Create aggregated entry
       const aggregatedEntry = {
-        _id: firstEntry._id, // Use first entry's ID for consistency
+        _id: firstEntry._id,
         user: firstEntry.user,
         symbol: symbol,
         companyName: firstEntry.companyName,
@@ -173,8 +153,6 @@ router.get("/", auth, async (req, res) => {
         })),
       };
 
-      console.log(`🔍 [PORTFOLIO] Final values for ${symbol}: currentPrice=${aggregatedEntry.currentPrice}, currentValue=${aggregatedEntry.currentValue}, totalShares=${totalShares}`);
-
       aggregatedPortfolio.push(aggregatedEntry);
     }
 
@@ -188,10 +166,7 @@ router.get("/", auth, async (req, res) => {
       averageYield: 0,
     };
 
-    console.log(`🔍 [PORTFOLIO] Starting totals calculation for ${aggregatedPortfolio.length} stocks`);
-
     aggregatedPortfolio.forEach((item) => {
-      console.log(`🔍 [PORTFOLIO] Adding ${item.symbol}: currentValue=${item.currentValue}, totalInvestment=${item.totalInvestment}`);
       totals.totalInvestment += item.totalInvestment;
       totals.currentValue += item.currentValue;
       totals.totalDividendIncome += item.totalDividendIncome;
@@ -199,18 +174,20 @@ router.get("/", auth, async (req, res) => {
       totals.totalReturn += item.totalReturn;
     });
 
-    console.log(`🔍 [PORTFOLIO] Final totals: currentValue=${totals.currentValue}, totalInvestment=${totals.totalInvestment}`);
-
-    if (aggregatedPortfolio.length > 0) {
+    // Calculate average yield
+    if (totals.totalInvestment > 0) {
       totals.averageYield = (totals.totalDividendIncome / totals.totalInvestment) * 100;
     }
 
+    console.log(`🔍 [PORTFOLIO] Final totals: currentValue=${totals.currentValue}, totalInvestment=${totals.totalInvestment}`);
+
     res.json({
       portfolio: aggregatedPortfolio,
-      totals,
+      totals: totals,
     });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error("Error fetching portfolio:", error);
+    res.status(500).json({ error: "Failed to fetch portfolio" });
   }
 });
 

@@ -157,6 +157,7 @@ app.use("*", (req, res) => {
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT} in ${config.nodeEnv} mode`);
   console.log(`📊 Health check: http://localhost:${PORT}/api/health`);
+  console.log("new Version 1.0.0");
   console.log(`📝 Morgan logging: ${config.nodeEnv === "production" ? "combined (errors only)" : "dev (all requests)"}`);
 });
 

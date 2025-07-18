@@ -19,7 +19,7 @@ set -e
 # Clone repo if not present
 if [ ! -d "$REPO_DIR/.git" ]; then
   echo "📥 Cloning repository..."
-  git clone https://github.com/your-username/your-repo.git $REPO_DIR  # <-- Replace with your repo URL
+  git clone https://github.com/GalOrlanov/dividend-tracker.git $REPO_DIR
 fi
 
 cd $REPO_DIR

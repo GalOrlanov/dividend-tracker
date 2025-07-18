@@ -1,0 +1,36 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background circle -->
+  <circle cx="512" cy="512" r="512" fill="linear-gradient(135deg, #667eea 0%, #764ba2 100%)"/>
+  
+  <!-- Inner circle for depth -->
+  <circle cx="512" cy="512" r="460" fill="linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)"/>
+  
+  <!-- Chart bars representing growth -->
+  <rect x="300" y="400" width="60" height="200" rx="8" fill="rgba(255,255,255,0.9)"/>
+  <rect x="380" y="350" width="60" height="250" rx="8" fill="rgba(255,255,255,0.9)"/>
+  <rect x="460" y="300" width="60" height="300" rx="8" fill="rgba(255,255,255,0.9)"/>
+  <rect x="540" y="250" width="60" height="350" rx="8" fill="rgba(255,255,255,0.9)"/>
+  <rect x="620" y="200" width="60" height="400" rx="8" fill="rgba(255,255,255,0.9)"/>
+  
+  <!-- Dividend symbol (D) -->
+  <circle cx="512" cy="180" r="80" fill="rgba(255,255,255,0.95)"/>
+  <path d="M 460 140 Q 460 180 460 220 Q 460 260 500 260 Q 540 260 540 220 Q 540 180 540 140 Q 540 100 500 100 Q 460 100 460 140 Z" fill="#4facfe"/>
+  <path d="M 480 120 Q 480 160 480 200 Q 480 240 500 240 Q 520 240 520 200 Q 520 160 520 120 Q 520 100 500 100 Q 480 100 480 120 Z" fill="white"/>
+  
+  <!-- Small coins representing dividends -->
+  <circle cx="200" cy="300" r="25" fill="rgba(255,215,0,0.9)"/>
+  <circle cx="200" cy="300" r="20" fill="rgba(255,215,0,0.7)"/>
+  <text x="200" y="308" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="16" font-weight="bold">$</text>
+  
+  <circle cx="824" cy="300" r="25" fill="rgba(255,215,0,0.9)"/>
+  <circle cx="824" cy="300" r="20" fill="rgba(255,215,0,0.7)"/>
+  <text x="824" y="308" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="16" font-weight="bold">$</text>
+  
+  <!-- Growth arrow -->
+  <path d="M 700 450 L 750 400 L 800 450 L 750 430 L 750 500 Z" fill="rgba(76,175,80,0.9)"/>
+  
+  <!-- Subtle grid lines -->
+  <line x1="280" y1="600" x2="680" y2="600" stroke="rgba(255,255,255,0.3)" stroke-width="2"/>
+  <line x1="280" y1="500" x2="680" y2="500" stroke="rgba(255,255,255,0.3)" stroke-width="2"/>
+  <line x1="280" y1="400" x2="680" y2="400" stroke="rgba(255,255,255,0.3)" stroke-width="2"/>
+</svg> 

@@ -47,6 +47,11 @@ const DashboardScreen = ({ navigation, route }) => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
+  // Separate loading states for each data type
+  const [portfolioLoading, setPortfolioLoading] = useState(false);
+  const [etfDataLoading, setEtfDataLoading] = useState(false);
+  const [stockDataLoading, setStockDataLoading] = useState(false);
+
   // Popular ETFs to display
   const popularETFs = [
     { symbol: "^GSPC", name: "S&P 500", fullName: "S&P 500 Index" },
@@ -57,6 +62,7 @@ const DashboardScreen = ({ navigation, route }) => {
 
   const fetchETFData = async () => {
     try {
+      setEtfDataLoading(true);
       // Initialize loading state for all ETFs
       const initialLoadingState = {};
       popularETFs.forEach((etf) => {
@@ -123,6 +129,8 @@ const DashboardScreen = ({ navigation, route }) => {
         };
       });
       setEtfData(defaultData);
+    } finally {
+      setEtfDataLoading(false);
     }
   };
 
@@ -130,6 +138,7 @@ const DashboardScreen = ({ navigation, route }) => {
     if (!portfolio || portfolio.length === 0) return;
 
     try {
+      setStockDataLoading(true);
       // Initialize loading state for all stocks
       const initialLoadingState = {};
       portfolio.forEach((stock) => {
@@ -171,20 +180,22 @@ const DashboardScreen = ({ navigation, route }) => {
       }));
     } catch (error) {
       console.error("Error fetching stock data:", error);
+    } finally {
+      setStockDataLoading(false);
     }
   };
 
   const fetchDashboardData = async () => {
     try {
-      setLoading(true);
+      setPortfolioLoading(true);
       const response = await portfolioAPI.getPortfolio();
       console.log("📊 Portfolio data received:", response);
 
       const portfolioData = response.data;
       setPortfolioData(portfolioData);
 
-      // Fetch fresh stock data
-      await fetchStockData(portfolioData.portfolio);
+      // Fetch fresh stock data independently
+      fetchStockData(portfolioData.portfolio);
     } catch (error) {
       console.error("Error fetching dashboard data:", error);
       showMessage({
@@ -193,20 +204,14 @@ const DashboardScreen = ({ navigation, route }) => {
         type: "danger",
       });
     } finally {
-      setLoading(false);
+      setPortfolioLoading(false);
     }
   };
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
-      // Reset ETF loading states
-      const initialLoadingState = {};
-      popularETFs.forEach((etf) => {
-        initialLoadingState[etf.symbol] = true;
-      });
-      setEtfLoading(initialLoadingState);
-
+      // Refresh each data type independently
       await Promise.all([fetchDashboardData(), fetchETFData()]);
     } catch (error) {
       console.error("Error refreshing data:", error);
@@ -216,6 +221,7 @@ const DashboardScreen = ({ navigation, route }) => {
   }, []);
 
   useEffect(() => {
+    // Load each data type independently for better UX
     fetchDashboardData();
     fetchETFData();
   }, []);
@@ -309,9 +315,20 @@ const DashboardScreen = ({ navigation, route }) => {
       marginTop: 16,
       borderColor: colors.primary,
     },
+    sectionLoading: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      paddingVertical: 20,
+    },
+    sectionLoadingText: {
+      marginLeft: 10,
+      fontSize: 14,
+      color: colors.textSecondary,
+    },
   });
 
-  if (loading) {
+  if (portfolioLoading && !portfolioData) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={colors.primary} />
@@ -325,25 +342,43 @@ const DashboardScreen = ({ navigation, route }) => {
       {/* ETF Cards */}
       <View style={styles.etfContainer}>
         <Text style={styles.sectionTitle}>Market Indices</Text>
-        <View style={styles.etfGrid}>
-          {popularETFs.map((etf, index) => (
-            <View key={etf.symbol} style={styles.etfCardWrapper}>
-              <ETFCard
-                symbol={etf.symbol}
-                name={etf.name}
-                fullName={etf.fullName}
-                price={etfData[etf.symbol]?.price}
-                change={etfData[etf.symbol]?.change}
-                changePercent={etfData[etf.symbol]?.changePercent}
-                isLoading={etfLoading[etf.symbol]}
-              />
-            </View>
-          ))}
-        </View>
+        {etfDataLoading ? (
+          <View style={styles.sectionLoading}>
+            <ActivityIndicator size="small" color={colors.primary} />
+            <Text style={styles.sectionLoadingText}>Loading market indices...</Text>
+          </View>
+        ) : (
+          <View style={styles.etfGrid}>
+            {popularETFs.map((etf, index) => (
+              <View key={etf.symbol} style={styles.etfCardWrapper}>
+                <ETFCard
+                  symbol={etf.symbol}
+                  name={etf.name}
+                  fullName={etf.fullName}
+                  price={etfData[etf.symbol]?.price}
+                  change={etfData[etf.symbol]?.change}
+                  changePercent={etfData[etf.symbol]?.changePercent}
+                  isLoading={etfLoading[etf.symbol]}
+                />
+              </View>
+            ))}
+          </View>
+        )}
       </View>
 
       {/* Forecast Chart */}
-      <ForecastChart initialInvestment={forecastParams.initialInvestment} annualDividendYield={forecastParams.annualDividendYield} years={10} showScenarios={true} />
+      {portfolioLoading ? (
+        <Card style={{ margin: 16, backgroundColor: colors.surface }}>
+          <Card.Content>
+            <View style={styles.sectionLoading}>
+              <ActivityIndicator size="small" color={colors.primary} />
+              <Text style={styles.sectionLoadingText}>Loading forecast data...</Text>
+            </View>
+          </Card.Content>
+        </Card>
+      ) : (
+        <ForecastChart initialInvestment={forecastParams.initialInvestment} annualDividendYield={forecastParams.annualDividendYield} years={10} showScenarios={true} />
+      )}
 
       {/* Portfolio Stocks */}
       <Card style={styles.stocksCard}>
@@ -355,7 +390,12 @@ const DashboardScreen = ({ navigation, route }) => {
             </Button>
           </View>
 
-          {portfolioData?.portfolio && portfolioData.portfolio.length > 0 ? (
+          {portfolioLoading ? (
+            <View style={styles.sectionLoading}>
+              <ActivityIndicator size="small" color={colors.primary} />
+              <Text style={styles.sectionLoadingText}>Loading portfolio...</Text>
+            </View>
+          ) : portfolioData?.portfolio && portfolioData.portfolio.length > 0 ? (
             portfolioData.portfolio.map((stock, index) => <StockCard key={stock._id || stock.symbol || index} stock={stock} isLoading={stockLoading[stock.symbol]} />)
           ) : (
             <View style={styles.emptyState}>

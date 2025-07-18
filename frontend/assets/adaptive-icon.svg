@@ -1,0 +1,31 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background circle -->
+  <circle cx="512" cy="512" r="512" fill="linear-gradient(135deg, #667eea 0%, #764ba2 100%)"/>
+  
+  <!-- Inner circle for depth -->
+  <circle cx="512" cy="512" r="460" fill="linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)"/>
+  
+  <!-- Centered chart bars representing growth -->
+  <rect x="350" y="350" width="50" height="200" rx="6" fill="rgba(255,255,255,0.9)"/>
+  <rect x="420" y="300" width="50" height="250" rx="6" fill="rgba(255,255,255,0.9)"/>
+  <rect x="490" y="250" width="50" height="300" rx="6" fill="rgba(255,255,255,0.9)"/>
+  <rect x="560" y="200" width="50" height="350" rx="6" fill="rgba(255,255,255,0.9)"/>
+  <rect x="630" y="150" width="50" height="400" rx="6" fill="rgba(255,255,255,0.9)"/>
+  
+  <!-- Large dividend symbol (D) in center -->
+  <circle cx="512" cy="600" r="100" fill="rgba(255,255,255,0.95)"/>
+  <path d="M 450 550 Q 450 600 450 650 Q 450 700 512 700 Q 574 700 574 650 Q 574 600 574 550 Q 574 500 512 500 Q 450 500 450 550 Z" fill="#4facfe"/>
+  <path d="M 480 520 Q 480 570 480 620 Q 480 670 512 670 Q 544 670 544 620 Q 544 570 544 520 Q 544 500 512 500 Q 480 500 480 520 Z" fill="white"/>
+  
+  <!-- Small coins representing dividends -->
+  <circle cx="200" cy="400" r="30" fill="rgba(255,215,0,0.9)"/>
+  <circle cx="200" cy="400" r="25" fill="rgba(255,215,0,0.7)"/>
+  <text x="200" y="410" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="20" font-weight="bold">$</text>
+  
+  <circle cx="824" cy="400" r="30" fill="rgba(255,215,0,0.9)"/>
+  <circle cx="824" cy="400" r="25" fill="rgba(255,215,0,0.7)"/>
+  <text x="824" y="410" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="20" font-weight="bold">$</text>
+  
+  <!-- Growth arrow -->
+  <path d="M 750 500 L 800 450 L 850 500 L 800 480 L 800 550 Z" fill="rgba(76,175,80,0.9)"/>
+</svg> 
